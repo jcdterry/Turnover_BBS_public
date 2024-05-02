@@ -1,0 +1,78 @@
+---
+title: "Cross referencing Transects and HMI map"
+output: 
+  html_document: 
+    toc: yes
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r warning=FALSE, message = FALSE}
+library(sf)
+library(tidyverse)
+library(lwgeom)
+library(raster)
+library(exactextractr)  # for polygon / rster intersections
+
+map <- purrr::map
+select <- dplyr::select
+
+
+L48Routes<-read_sf('../Data/Lower48_routes/bbsrtsl020.shp')  # https://earthworks.stanford.edu/catalog/stanford-vy474dv5024
+
+AllRoutes<- read_csv('../Data/2020Release_Nor/routes.csv')%>%
+  mutate(RTENO = parse_number(paste0(StateNum ,Route)))
+
+nrow(L48Routes)
+sum(AllRoutes$RouteName %in% L48Routes$RTENAME)
+sum(AllRoutes$RTENO %in% L48Routes$RTENO)
+```
+
+# Human Modification maps
+
+Raw data not included her as too large.  
+Downloaded from here: https://figshare.com/articles/dataset/Global_Human_Modification/7283087?file=13448294  (NB multiple GB)
+
+```{r}
+# unzip('~/Downloads/gHM.zip')
+HumanMod2<-raster('~/Downloads/gHM/gHM.tif')
+plot(HumanMod2)
+
+crs(HumanMod2)
+
+arrange(L48Routes , RTENO )%>%
+  group_by( RTENO, RTENAME  ) %>%
+  summarize(  geom_all = st_union(geometry)) -> ORDER_L48Routes_grouped
+
+ORDER_L48Routes_grouped$Av_HMindex <- NA
+```
+
+```{r eval = FALSE}
+## each transect takes a bit less than 1 second, so this takes best part of an hour. 
+for( i in 1:nrow(ORDER_L48Routes_grouped)){
+  buffer<- st_buffer( ORDER_L48Routes_grouped$geom_all[i,], dist = 0.0001) 
+  buffer2 <- st_transform(buffer, crs = crs(HumanMod2) )
+  out = exact_extract(HumanMod2, buffer2, fun='mean')
+  ORDER_L48Routes_grouped$Av_HMindex[i] <-  out[[1]]
+  print(i)
+}
+
+ORDER_L48Routes_grouped %>%
+  as.data.frame() %>%
+  select(-geom_all) %>%
+  write_csv('../Data/Transect_Average_gHM.csv')
+
+```
+
+# Session Info
+
+```{r}
+sessionInfo()
+```
+
+
+

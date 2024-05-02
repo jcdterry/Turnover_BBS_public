@@ -1,0 +1,437 @@
+---
+title: "Example Plots"
+output: 
+  html_document: 
+    toc: yes
+editor_options: 
+  chunk_output_type: console
+---
+
+This document makes the example plots for the paper: Main text figure 2, and SI figures. 
+
+
+```{r message = FALSE, warning = FALSE}
+library(tidyverse)
+library(vegan)  
+library(purrr)
+library(stringr)
+library(cowplot)
+
+map <- purrr::map
+select <- dplyr::select
+
+logit <- function(x){return(log(x/(1-x)))}
+inv_logit <- function(x){exp(x)/(1+exp(x))}
+```
+
+### Reading in data
+
+NB inferred curve parameters from the fitting process are calculated in `Inferring Curve Parameters from Hierarchical Model.rmd`
+
+```{r message = FALSE, warning = FALSE}
+SpNames <- read_csv('../Data/Consol_SpeciesNames.csv')
+RawSims <- read_csv('../Data/2020Release_Nor/Dissim_Diff_df_filt2.csv') 
+load(file = '../Data/2020Release_Nor/matrix_form_filt1')  ### list of matrices
+
+STATS <- read_csv('../Data/STATS.csv')
+STATS_select <- read_csv('../Data/STATS_select.csv')
+STATS_select_scaled <- read_csv('../Data/STATS_select_SCALED.csv')
+
+RichnessSlope_df <- read_csv('../ModelSummaries/RichnessSlope_df.csv')
+
+STR_fit_df <- read_csv('../ModelSummaries/STR_AllBCRs_SeperateLM.csv')
+
+## Reading in inferred slopes # Calculated in other .rmd. 
+AllInferredCurveParams_woP <- read_csv('../ModelSummaries/AllCurveParams_WOPreds1.csv') %>%
+  left_join(STATS_select)
+```
+
+
+# Focal Transect - Main Text Figure 2
+
+```{r}
+ExampleID <- 'C_840_S_02_R_008'  # has a nice flat richness trend, but fairly high d
+
+RawPA_focal <- matrix_form[[which(names(matrix_form)==ExampleID)]]
+
+## Species Names
+SpNames %>%
+  group_by(ConsolAOU) %>%
+  summarise(Names = paste(English_Common_Name,
+                          collapse = ' AND ')) -> CONSOL_Names
+
+RawPA_focal %>%
+  as.data.frame() %>%
+  pivot_longer( names_to = 'Species', 
+                values_to = 'Observed', -Year )%>%
+  mutate(ConsolAOU = as.numeric(Species) ) %>%
+  left_join(CONSOL_Names, by = "ConsolAOU") -> RawPA_focal_Long
+
+FocalParams<-  filter(AllInferredCurveParams_woP, TransectID ==ExampleID)
+
+```
+
+## Panel B Richness Trends
+
+```{r}
+Richnesses <- rowSums(RawPA_focal[,-1])
+LowerBound =  mean(Richnesses) -2 *sd(Richnesses)
+UpperBound =  mean(Richnesses) +2 *sd(Richnesses)
+
+YearsToKeep <- data.frame(Year =RawPA_focal[,1],
+                          Richness = Richnesses,
+                          Keep = Richnesses>LowerBound & Richnesses<UpperBound)
+
+RawPA_focal_Long %>%
+  filter(Observed ==1) %>%
+  group_by(Year)%>%
+  count() %>%
+  left_join(YearsToKeep)-> RichnessData_focal
+
+RichnessData_focal%>%
+  filter(Keep) %>%
+  ggplot(aes( x = Year, y = n))+
+  geom_point()+
+  geom_smooth(method = 'lm', se = FALSE,
+              linetype = 'dashed', col = 'red')+
+  geom_point( data = filter(RichnessData_focal, !Keep),
+              col = 'grey' ) +
+  theme_minimal()+
+  scale_x_continuous(limits =  c(1965,2020), breaks = seq(1965,2020, by=5))+
+  ylab('Number of Observed Species')+ xlab('Year')  -> Rich_plot
+
+```
+
+## Panel A Raw data
+
+```{r}
+## Reorder to have permanent species t the bottom
+RawPA_focal_Long %>%
+  group_by(Names,ConsolAOU) %>%
+  filter( Observed==1) %>%
+  summarise(FirstYear = min(Year),
+            Occurences = n()) %>%
+  arrange( FirstYear, desc(Occurences))-> SpeciesOrdering
+
+
+RawPA_focal_Long %>%
+  left_join(YearsToKeep, by = "Year") %>%
+  ggplot(aes( x = Year, y = factor(ConsolAOU) ,
+              fill = factor(Observed), 
+              alpha = 0.5+(Keep/2)))+
+  geom_tile()+
+  scale_y_discrete(limits = factor(SpeciesOrdering$ConsolAOU)  )+
+  scale_x_continuous(limits =  c(1965,2020), breaks = seq(1965,2020, by=5))+
+  scale_fill_manual(values = c('yellow','black'))+
+  theme_minimal()+
+  theme(axis.text.y = element_blank())+
+  ylab('Bird Species')+
+  scale_alpha_identity()+guides(fill = 'none')  -> PA_plot
+# 
+# # With species names (very long, as some grouped)
+# RawPA_focal_Long %>%
+#   ggplot(aes( x = Year, y = Names, col = factor(Observed)))+
+#   geom_point()+
+#   scale_y_discrete(limits = SpeciesOrdering$Names )+
+#     scale_x_continuous(limits =  c(1965,2025))
+
+```
+
+## Panel D Similartity Decay curve
+
+```{r}
+
+RawSims %>%
+  filter( TransectID ==ExampleID) %>%
+  mutate(Soren_sim = 1-SorenDist)-> Focal_rawDiffs
+
+Focal_rawDiffs %>%
+  select( TransectID, YearDiff, Soren_sim ) %>%
+  group_by(TransectID, YearDiff) %>%
+  summarise( y = mean(Soren_sim),
+             SD=sd(Soren_sim),
+             se_raw = sd(Soren_sim)/sqrt(n())) %>%
+  mutate(  mean_sd = mean(SD,na.rm=TRUE),
+           se = if_else(is.na(se_raw),mean_sd,se_raw )) %>%
+  arrange(TransectID) %>%
+  mutate(UsedForInitSlope = YearDiff<=8 )-> Focal_Averages
+
+Focal_rawDiffs %>%
+  left_join(FocalParams, by = "TransectID") %>%
+  mutate(Curve =  InferredO*( (1-InferredD) * exp(-InferredL*YearDiff )+InferredD)) -> InferredCurveFocal
+
+my_breaks = signif(exp(seq(from=log(0.005), to=log(0.035), l =4 )),2)
+
+## Initial Slope
+
+
+
+Focal_rawDiffs %>%
+  ggplot(aes(x = YearDiff))+
+  geom_point(aes( x = YearDiff, y = Soren_sim), size = 0.1, col = 'grey')+
+  geom_smooth(data = filter(Focal_Averages,UsedForInitSlope),
+              aes(x = YearDiff, y =y ),
+              method = 'lm', se = FALSE)+
+  geom_point(data = Focal_Averages,
+             aes( x = YearDiff, y = y, col = se,
+                  shape = UsedForInitSlope))+
+  geom_line(data = InferredCurveFocal, aes(y =Curve), col = 'red', linetype = 2)+
+  geom_hline(data = InferredCurveFocal,aes( yintercept =InferredD*InferredO), linetype=3)+
+  geom_hline(data = InferredCurveFocal,aes( yintercept =InferredO), linetype= 3)+
+  guides(shape = FALSE)+
+  scale_color_viridis_c(trans = "log",option = 'plasma',
+                        breaks = my_breaks, labels = my_breaks,
+                        limits = c(0.005, 0.035), name = 'SE')+
+  ylab('Sørensen Similarity')+ #theme(legend.position = 'bottom')+
+  xlab('Years Between Samples')+
+  theme_minimal()+
+  theme(legend.position = c(0.6, 0.85),
+        legend.direction = 'horizontal',
+        legend.title = element_text(size = 10),
+        legend.key.width = unit(0.6, "cm"),
+        legend.key.height  = unit(0.5, "cm"),
+        legend.text = element_text(size = 8))   -> Sim_Plot
+
+
+
+```
+
+## Panel C Species Accumulation Curve
+
+```{R}
+Focal_mat <- RawPA_focal[,-1]
+N_years = nrow(Focal_mat)
+
+XX <- specaccum(Focal_mat, method = 'collector')
+
+
+str_data<- data.frame( sample = 1:nrow(Focal_mat),
+                       Year =RawPA_focal[,1],
+                       accum_richness= XX$richness) %>%
+  mutate(Time = Year-min(Year),
+         log_time = log(Time), 
+         log_accum_richness = log(accum_richness))%>%
+  mutate(Cut = sample  <5 ) 
+
+str_fit <- lm(log_accum_richness~log_time, data = filter(str_data,!Cut ))  # drop first four points
+LogSc <- coefficients(str_fit)[1]
+LogSw <- coefficients(str_fit)[2]
+LogSLogT_r2 <- summary(str_fit)$r.squared
+
+str_data %>%
+  filter( !Cut) %>%
+  ggplot(aes( x = log_time , y = log_accum_richness))+
+  geom_smooth(method = 'lm', se = FALSE,
+              linetype = 'dashed', col = 'red')+
+  geom_point()+
+  ylab('Accumulated Species\nRichness (log)')+
+  xlab('Years Since First Survey (log)')+
+  theme_minimal()+
+  geom_point( data = filter(str_data, Cut),
+              col = 'grey' )->STR_plot
+
+```
+
+## Combining into Figure 2
+```{r}
+
+Fig2ExampleSet<-plot_grid( PA_plot, Rich_plot,STR_plot, Sim_Plot, labels = 'auto')
+Fig2ExampleSet
+
+ggsave('../MS_figs/Fig2_example.png', Fig2ExampleSet,
+       width = 10, height = 8, bg = 'white' )
+
+```
+
+
+## New version of Figure 2
+```{r}
+
+Fig2ExampleSet<-plot_grid( PA_plot ,Sim_Plot,STR_plot, 
+                           labels = c('a) Species presence-absence matrix',
+                                      'b) Community similarity decay',
+                                      'c) Rate of species accumulation') ,
+                           scale = 0.85,
+                           hjust = -0.1, 
+                           ncol= 1)
+Fig2ExampleSet
+
+ggsave('../MS_figs/Fig2_v2.png', Fig2ExampleSet,
+       width = 5, height = 9, bg = 'white' )
+
+```
+
+
+
+
+
+
+### Information about example plot
+
+```{r}
+paste('Transect = :', ExampleID)
+
+STATS %>% filter(TransectID == ExampleID) %>% pluck('RouteName')
+paste('Transect = :', FocalParams$TransectID)
+
+STATS %>% filter(TransectID == ExampleID) %>%
+  pluck('BCR') ## Appalachian Mountains  (lower end)
+
+STATS %>% filter(TransectID == ExampleID) %>%
+  pluck('StateNum') ## Alabama
+
+STATS %>% filter(TransectID == ExampleID) %>%
+  select(Latitude, Longitude) ## Appalachian Mountains
+
+
+paste('exponent:', signif(LogSw,3))
+
+paste('d:', signif(FocalParams$InferredD,3),
+      'o:', signif(FocalParams$InferredO,3),
+      'L:', signif(FocalParams$InferredL,3))
+
+paste('trend:',
+      signif(filter(RichnessSlope_df,
+                    TransectID == ExampleID)$Trend,3))
+
+```
+
+# SI Figure - Set of example similarity decay curves
+
+Random selection of  transects
+```{r}
+set.seed(13)
+AllInferredCurveParams_woP %>%
+  slice_sample( n=10 ) -> SampledCurves
+
+RawSims %>%
+  filter( TransectID%in% SampledCurves$TransectID) %>%
+  mutate(Soren_sim = 1-SorenDist)-> SampledCurves_rawDiffs
+
+SampledCurves_rawDiffs %>%
+  select( TransectID, YearDiff, Soren_sim ) %>%
+  group_by(TransectID, YearDiff) %>%
+  summarise( y = mean(Soren_sim),
+             SD=sd(Soren_sim),
+             se_raw = sd(Soren_sim)/sqrt(n())) %>%
+  mutate(  mean_sd = mean(SD,na.rm=TRUE),
+           se = if_else(is.na(se_raw),mean_sd,se_raw )) %>%
+  arrange(TransectID)  -> SampledCurves_Averages
+
+SampledCurves_rawDiffs %>%
+  left_join(select(AllInferredCurveParams_woP,                ## without predictor curves
+                   TransectID       , BCR,
+                   NP_InferredD=  InferredD ,
+                   NP_InferredO=InferredO ,
+                   NP_InferredL=  InferredL), by = "TransectID") %>%
+  mutate(NP_Curve =  NP_InferredO*( (1-NP_InferredD) * exp(-NP_InferredL*YearDiff )+NP_InferredD)) -> InferredCurves
+
+SampledCurves_rawDiffs %>%
+  ggplot(aes(x = YearDiff))+
+  geom_point(aes( x = YearDiff, y = Soren_sim), size = 0.1, col = 'grey')+
+  geom_point(data = SampledCurves_Averages,  aes( x = YearDiff, y = y, col = se))+
+  geom_line(data = InferredCurves, aes(y =NP_Curve , group = TransectID), col = 'red')+
+  scale_color_viridis_c(name = 'SE of interval average')+
+  facet_wrap(~TransectID, nrow=2)+
+  theme_minimal()+
+  scale_y_continuous(limits = c(0.35, 1))+
+  geom_text(data = InferredCurves,
+            aes(label = paste0('BCR:', BCR,
+                               ' d: ', signif(NP_InferredD,2),
+                               '\nL: ', signif(NP_InferredL,2),
+                               ' ω: ', signif(NP_InferredO,2))),
+            y= 0.4, x = 2, hjust = 0, size = 3 )+
+  theme(legend.position = 'bottom', legend.text = element_text(angle = -90 , hjust = 0 ))+
+  xlab('Year Difference')+
+  ylab('Sorensen Similarity')-> TenExamples
+
+TenExamples
+
+```
+
+## Examples that show strong levelling off
+
+```{r}
+## Examples that show strong levelling off 
+ExamplesToUse <- c('C_840_S_81_R_024', 'C_840_S_14_R_409', 'C_840_S_92_R_041', 
+                   'C_840_S_14_R_023', 'C_840_S_49_R_047', 'C_840_S_64_R_018', 
+                   'C_840_S_81_R_009', 'C_840_S_85_R_310', 'C_840_S_92_R_071',
+                   'C_840_S_92_R_093')
+
+RawSims %>%
+  filter( TransectID%in% ExamplesToUse) %>%
+  mutate(Soren_sim = 1-SorenDist)-> SampledCurves_rawDiffs
+
+SampledCurves_rawDiffs %>%
+  select( TransectID, YearDiff, Soren_sim ) %>%
+  group_by(TransectID, YearDiff) %>%
+  summarise( y = mean(Soren_sim),
+             SD=sd(Soren_sim),
+             se_raw = sd(Soren_sim)/sqrt(n())) %>%
+  mutate(  mean_sd = mean(SD,na.rm=TRUE),
+           se = if_else(is.na(se_raw),mean_sd,se_raw )) %>%
+  arrange(TransectID)  -> SampledCurves_Averages
+
+SampledCurves_rawDiffs %>%
+  left_join(select(AllInferredCurveParams_woP,## without predictor curves
+                   TransectID       ,BCR,
+                   NP_InferredD=  InferredD ,
+                   NP_InferredO=InferredO ,
+                   NP_InferredL=  InferredL), by = "TransectID") %>%
+  mutate(NP_Curve =  NP_InferredO*( (1-NP_InferredD) * exp(-NP_InferredL*YearDiff )+NP_InferredD)) -> InferredCurves
+
+SampledCurves_rawDiffs %>%
+  ggplot(aes(x = YearDiff))+
+  geom_point(aes( x = YearDiff, y = Soren_sim), size = 0.1, col = 'grey')+
+  geom_point(data = SampledCurves_Averages,  aes( x = YearDiff, y = y, col = se))+
+  geom_line(data = InferredCurves, aes(y =NP_Curve , group = TransectID), col = 'red')+
+  scale_color_viridis_c()+
+  scale_y_continuous(limits = c(0.35, 1))+
+  facet_wrap(~TransectID, nrow=2)+
+  theme_minimal()+
+  geom_text(data = InferredCurves,
+            aes(label = paste0('BCR:', BCR,
+                               ' d: ', signif(NP_InferredD,2),
+                               '\nL: ', signif(NP_InferredL,2),
+                               ' ω: ', signif(NP_InferredO,2))),
+            y= 0.4, x = 2, hjust = 0, size = 3 )+
+  theme(legend.position = 'bottom', legend.text = element_text(angle = -90 , hjust = 0 ))+
+  xlab('Year Difference')+
+  ylab('Sorensen Similarity')-> Ten_Clear_Examples
+
+Ten_Clear_Examples
+
+```
+
+## Combining
+
+```{r}
+
+plot_grid( TenExamples+guides(col='none'),
+           Ten_Clear_Examples+guides(col='none'),
+           get_legend(TenExamples),
+           
+           labels = c('a) Ten random examples',
+                      'b) Ten examples that show particuarly clear levelling off',
+                      ''),
+           scale = 0.9, hjust = -0.1,
+           nrow=3, rel_heights = c(5,5,1)) -> Examples_bothtypes
+
+ggsave('../MS_figs/SI4_10_10ClearExamples.png',
+       Examples_bothtypes,
+       width = 8, height = 12, bg = 'white' )
+
+ggsave('../MS_figs/SI4_10_10ClearExamples.pdf',
+       Examples_bothtypes,
+       width = 8, height = 12, bg = 'white' )
+
+```
+
+
+# Session Info
+
+```{r}
+sessionInfo()
+```
+
+

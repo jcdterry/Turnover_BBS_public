@@ -1,0 +1,421 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<metadata>
+  <idinfo>
+    <citation>
+      <citeinfo>
+        <origin/>
+        <pubdate>19990211</pubdate>
+        <title>Breeding Bird Survey Route Locations for Lower 48 States, 1966-1998</title>
+        <geoform>vector digital data</geoform>
+        <pubinfo>
+          <pubplace/>
+          <publish>National Atlas of the United States</publish>
+        </pubinfo>
+        <othercit>These data were downloaded from the National Atlas website (http://www.nationalatlas.gov/atlasftp.html) in August 2014.</othercit>
+        <onlink>http://purl.stanford.edu/vy474dv5024</onlink>
+        <lworkcit>
+          <citeinfo>
+            <title>National Atlas of the United States of America, 1997-2014</title>
+          </citeinfo>
+        </lworkcit>
+      </citeinfo>
+    </citation>
+    <descript>
+      <abstract>This line shapefile portrays the current routes used for conducting Breeding Bird Surveys in the lower 48 States. This layer is part of the 1997-2014 edition of the National Atlas of the United States.</abstract>
+      <purpose>The digital data sets are used to create electronic and hard copy maps of the breeding bird survey routes. The data can be used to conduct geographic analysis on national and large regional scales. The data should be displayed and analyzed at scales appropriate for 1:100,000-scale data.</purpose>
+      <supplinf>For a description of the Breeding Bird Survey methods see Robbins, C.S. and W.T. Van Velzen; 1967; The Breeding Bird Survey, 1966; USDOI Migratory Bird Populations Station, Special Scientific Report--Wildlife No. 102; Washington, DC. ArcInfo and ArcView are products of Environmental Systems Research Institute, Inc. (ESRI), 380 New York Street, Redlands, CA 92373. Reference to ESRI products is for information purposes only and does not constitute endorsement by the U.S. Geological Survey. This map layer was collected using a different roads file from that available through the National Atlas of the United States, so there may be positional differences between the two map layers.</supplinf>
+    </descript>
+    <timeperd>
+      <timeinfo>
+        <rngdates>
+          <begdate>19660101</begdate>
+          <enddate>19980101</enddate>
+        </rngdates>
+      </timeinfo>
+      <current>Ground condition</current>
+    </timeperd>
+    <status>
+      <progress>Complete</progress>
+      <update>As needed</update>
+    </status>
+    <spdom>
+      <bounding>
+        <westbc>-124.663895</westbc>
+        <eastbc>-67.310202</eastbc>
+        <northbc>48.997949</northbc>
+        <southbc>24.589924</southbc>
+      </bounding>
+    </spdom>
+    <keywords>
+      <theme>
+        <themekt>lcsh</themekt>
+        <themekey>Bird populations</themekey>
+        <themekey>Birds-Breeding</themekey>
+      </theme>
+      <theme>
+        <themekt>ISO 19115 Topic Categories</themekt>
+        <themekey>environment</themekey>
+        <themekey>biota</themekey>
+      </theme>
+      <place>
+        <placekt>geonames</placekt>
+        <placekey>United States</placekey>
+        <placekey>Alabama</placekey>
+        <placekey>Arizona</placekey>
+        <placekey>Arkansas</placekey>
+        <placekey>Colorado</placekey>
+        <placekey>Connecticut</placekey>
+        <placekey>Delaware</placekey>
+        <placekey>Florida</placekey>
+        <placekey>Georgia</placekey>
+        <placekey>Idaho</placekey>
+        <placekey>Illinois</placekey>
+        <placekey>Indiana</placekey>
+        <placekey>Iowa</placekey>
+        <placekey>Kansas</placekey>
+        <placekey>Kentucky</placekey>
+        <placekey>Louisiana</placekey>
+        <placekey>Maine</placekey>
+        <placekey>Maryland</placekey>
+        <placekey>Massachusetts</placekey>
+        <placekey>Michigan</placekey>
+        <placekey>Minnesota</placekey>
+        <placekey>Mississippi</placekey>
+        <placekey>Missouri</placekey>
+        <placekey>Montana</placekey>
+        <placekey>Nebraska</placekey>
+        <placekey>Nevada</placekey>
+        <placekey>New Hampshire</placekey>
+        <placekey>New Jersey</placekey>
+        <placekey>New Mexico</placekey>
+        <placekey>New York (State)</placekey>
+        <placekey>North Carolina</placekey>
+        <placekey>North Dakota</placekey>
+        <placekey>Ohio</placekey>
+        <placekey>Oklahoma</placekey>
+        <placekey>Oregon</placekey>
+        <placekey>Pennsylvania</placekey>
+        <placekey>Rhode Island</placekey>
+        <placekey>South Carolina</placekey>
+        <placekey>South Dakota</placekey>
+        <placekey>Tennessee</placekey>
+        <placekey>Texas</placekey>
+        <placekey>Utah</placekey>
+        <placekey>Vermont</placekey>
+        <placekey>Virginia</placekey>
+        <placekey>Washington (D.C.)</placekey>
+        <placekey>Washington (State)</placekey>
+        <placekey>West Virginia</placekey>
+        <placekey>Wisconsin</placekey>
+        <placekey>Wyoming</placekey>
+      </place>
+    </keywords>
+    <accconst>None</accconst>
+    <useconst>None. Acknowledgment of the National Atlas of the United States of America and (or) the U.S. Geological Survey Patuxent Wildlife Research Center would be appreciated in products derived from these data.</useconst>
+    <ptcontac>
+      <cntinfo>
+        <cntorgp>
+          <cntorg>USGS Patuxent Wildlife Research Center</cntorg>
+          <cntper>Jane E. Fallon</cntper>
+        </cntorgp>
+        <cntaddr>
+          <addrtype>mailing</addrtype>
+          <address>11410 American Holly Drive</address>
+          <city>Laurel</city>
+          <state>MD</state>
+          <postal>20708-4015</postal>
+        </cntaddr>
+        <cntvoice>301-497-5664</cntvoice>
+        <cntemail>Jane_Fallon@usgs.gov</cntemail>
+      </cntinfo>
+    </ptcontac>
+    <datacred>Patuxent Wildlife Research Center. (1999). Breeding Bird Survey Route Locations for Lower 48 States, 1966-1998. National Atlas of the United States. Available at: http://purl.stanford.edu/vy474dv5024.</datacred>
+    <native>Microsoft Windows 7 Version 6.1 (Build 7601) Service Pack 1; Esri ArcGIS 10.3.1.4959</native>
+  </idinfo>
+  <dataqual>
+    <logic>ArcInfo software was used to create and maintain topological relationships between features. The ArcInfo command BUILD was run to ensure the topological consistency of the map layer. Each route was checked for missing and dangling arcs, correct length, proper direction, and correct route measures.</logic>
+    <complete>This map layer contains the Breeding Bird Survey Routes in the lower 48 States which were considered active in 1998. This includes many of the routes added in 1998, though not all of them. The discontinued Breeding Bird Survey routes were generally not digitized.</complete>
+    <posacc>
+      <horizpa>
+        <horizpar>Horizontal positional accuracy was tested by visual comparison of electronic maps to the source materials. For a few routes, we verified positions using GPS. If the route did not start at an intersection, the starting point may be slightly off. Portions of the route are sometimes skipped because of traffic noise or overlap with other routes. These skipped portions are usually not indicated. The maps we used did not always indicate the exact ending points of the routes, so in many cases the ending points are estimated and the routes digitized are longer then the actual route run. Occasionally portions of the roads on which Surveys were conducted were not contained on the digital road files we used. For these cases the road locations were very roughly estimated.</horizpar>
+      </horizpa>
+    </posacc>
+    <lineage>
+      <srcinfo>
+        <srccite>
+          <citeinfo>
+            <origin/>
+            <pubdate>19990101</pubdate>
+            <title>Breeding Bird Survey Route coverage</title>
+            <pubinfo>
+              <pubplace/>
+              <publish>USGS Patuxent Wildlife Research Center</publish>
+            </pubinfo>
+          </citeinfo>
+        </srccite>
+        <typesrc>None</typesrc>
+        <srctime>
+          <timeinfo>
+            <sngdate>
+              <caldate>19990101</caldate>
+            </sngdate>
+          </timeinfo>
+          <srccurr>publication date</srccurr>
+        </srctime>
+        <srccitea>BBSCov</srccitea>
+        <srccontr>Spatial and attribute information</srccontr>
+      </srcinfo>
+      <srcinfo>
+        <srccite>
+          <citeinfo>
+            <origin/>
+            <pubdate>unpublished material</pubdate>
+            <title>BBS routes maps</title>
+            <geoform>Map</geoform>
+          </citeinfo>
+        </srccite>
+        <typesrc>hardcopyPaper</typesrc>
+        <srctime>
+          <timeinfo>
+            <rngdates>
+              <begdate>19660101</begdate>
+              <enddate>19980101</enddate>
+            </rngdates>
+          </timeinfo>
+          <srccurr>Ground condition</srccurr>
+        </srctime>
+        <srccitea>BBSMAP</srccitea>
+        <srccontr>Spatial data and route ID numbers</srccontr>
+      </srcinfo>
+      <srcinfo>
+        <srccite>
+          <citeinfo>
+            <origin/>
+            <pubdate>unpublished material</pubdate>
+            <title>BBS Database</title>
+          </citeinfo>
+        </srccite>
+        <typesrc>None</typesrc>
+        <srctime>
+          <timeinfo>
+            <rngdates>
+              <begdate>19660101</begdate>
+              <enddate>19980101</enddate>
+            </rngdates>
+          </timeinfo>
+          <srccurr>Ground condition</srccurr>
+        </srctime>
+        <srccitea>BBSDA</srccitea>
+        <srccontr>Route names</srccontr>
+      </srcinfo>
+      <srcinfo>
+        <srccite>
+          <citeinfo>
+            <origin/>
+            <pubdate>19970101</pubdate>
+            <title>US Street Database</title>
+            <pubinfo>
+              <pubplace/>
+              <publish>ESRI</publish>
+            </pubinfo>
+          </citeinfo>
+        </srccite>
+        <typesrc>CD-ROM</typesrc>
+        <srctime>
+          <timeinfo>
+            <sngdate>
+              <caldate>19970101</caldate>
+            </sngdate>
+          </timeinfo>
+          <srccurr>publication date</srccurr>
+        </srctime>
+        <srccitea>ESRIDA</srccitea>
+        <srccontr>spatial information</srccontr>
+      </srcinfo>
+      <srcinfo>
+        <srccite>
+          <citeinfo>
+            <origin/>
+            <pubdate>19960101</pubdate>
+            <title>Street Atlas USA Version 4.0</title>
+            <pubinfo>
+              <pubplace/>
+              <publish>DeLorme</publish>
+            </pubinfo>
+          </citeinfo>
+        </srccite>
+        <typesrc>CD-ROM</typesrc>
+        <srctime>
+          <timeinfo>
+            <sngdate>
+              <caldate>19960101</caldate>
+            </sngdate>
+          </timeinfo>
+          <srccurr>publication date</srccurr>
+        </srctime>
+        <srccitea>DLRM</srccitea>
+        <srccontr>Spatial information</srccontr>
+      </srcinfo>
+      <procstep>
+        <procdesc>The Breeding Bird Survey route maps (BBSMAP) for most States were digitized with ArcView 3.0 and the US Streets Database (ESRIDA), which is based on the Tiger files. The arcs forming the routes were selected and shapefiles were created for each route. Routes in Idaho, Michigan, North Dakota, Ohio, West Virginia, Washington and part of Maryland were digitized using DeLorme's Street Atlas USA (DLRM). The files were converted to ArcInfo line coverages by State. BBS routes for Minnesota and Wisconsin were digitized by James M. Sales, University of Minnesota, Duluth, UMD Natural Resources Research Institute, Duluth, MN, 55812. The Virginia routes were provided to us by Jeffrey B. Trollinger, Fish and Wildlife Information System, Virginia Department of Game and Inland Fisheries, 4010 West Broad Street, Richmond, VA 23280. The California routes were provided to us by Allan Hollander, University of California, Santa Barbara, Santa Barbara, CA, 93106. The data was then converted into a format consistent with ours. We used ArcView to add newly created and missing routes to these files. For each State, an ArcInfo route system was added using the ArcInfo MEASUREROUTE command. The JOINITEM command was used to add the route name from the BBS Database (BBSDA). The APPEND command was then used to create a single coverage for the National Atlas.</procdesc>
+        <srcused>BBSMAP</srcused>
+        <srcused>DLRM</srcused>
+        <srcused>ESRIDA</srcused>
+        <srcused>BBSDA</srcused>
+        <srcprod>BBSCov</srcprod>
+      </procstep>
+      <procstep>
+        <procdesc>The coverage was read into ArcInfo, converted to NAD 83, and converted from the Lambert projection to geographic coordinates. The resulting file was loaded into ArcView with the route system information as one shapefile and the breeding bird survey route arcs as another shapefile. To create a final file containing both the arc information and the route lengths, the tables for the two layers were joined using the rteno item and the two ID numbers from the route coverage were turned off. The resulting file was saved as a shapefile.</procdesc>
+        <srcused>BBSCov</srcused>
+        <procdate>19990101</procdate>
+      </procstep>
+    </lineage>
+  </dataqual>
+  <spdoinfo>
+    <direct>Vector</direct>
+    <ptvctinf>
+      <sdtsterm>
+        <sdtstype>String</sdtstype>
+        <ptvctcnt>3731</ptvctcnt>
+      </sdtsterm>
+    </ptvctinf>
+  </spdoinfo>
+  <eainfo>
+    <detailed>
+      <enttyp>
+        <enttypl>bbsrtsl020</enttypl>
+        <enttypd>Routes used for conducting the Breeding Bird Surveys.</enttypd>
+        <enttypds>USGS Patuxent Wildlife Research Center</enttypds>
+      </enttyp>
+      <attr>
+        <attrlabl>FID</attrlabl>
+        <attrdef>Internal feature number.</attrdef>
+        <attrdefs>Esri</attrdefs>
+        <attrdomv>
+          <udom>Sequential unique whole numbers that are automatically generated.</udom>
+        </attrdomv>
+      </attr>
+      <attr>
+        <attrlabl>Shape</attrlabl>
+        <attrdef>The representation of the entity in the data.</attrdef>
+        <attrdefs>USGS Patuxent Wildlife Research Center</attrdefs>
+        <attrdomv>
+          <edom>
+            <edomv>Polyline</edomv>
+            <edomvd>1-dimensional element that may or may not surround a 2-dimensional element.</edomvd>
+            <edomvds>ESRI GIS software</edomvds>
+          </edom>
+          <udom>Coordinates defining the features.</udom>
+        </attrdomv>
+      </attr>
+      <attr>
+        <attrlabl>FNODE_</attrlabl>
+      </attr>
+      <attr>
+        <attrlabl>TNODE_</attrlabl>
+      </attr>
+      <attr>
+        <attrlabl>LPOLY_</attrlabl>
+      </attr>
+      <attr>
+        <attrlabl>RPOLY_</attrlabl>
+      </attr>
+      <attr>
+        <attrlabl>Length</attrlabl>
+        <attrdef>Length in coverage units.</attrdef>
+        <attrdefs>USGS Patuxent Wildlife Research Center</attrdefs>
+        <attrdomv>
+          <rdom>
+            <rdommin>0.00119</rdommin>
+            <rdommax>0.82804</rdommax>
+          </rdom>
+        </attrdomv>
+      </attr>
+      <attr>
+        <attrlabl>BBSRTSL020</attrlabl>
+      </attr>
+      <attr>
+        <attrlabl>ARC_LENGTH</attrlabl>
+      </attr>
+      <attr>
+        <attrlabl>Rteno</attrlabl>
+        <attrdef>The route number consists of the 1- or 2-digit State ID code followed by the 3-digit route ID. State codes are as follows: &gt;ID Number State &gt;------------------------------- &gt;2 Alabama &gt;6 Arizona &gt;7 Arkansas &gt;14 California &gt;17 Colorado &gt;18 Connecticut &gt;21 Delaware &gt;25 Florida &gt;27 Georgia &gt;33 Idaho &gt;34 Illinois &gt;35 Indiana &gt;36 Iowa &gt;38 Kansas &gt;39 Kentucky &gt;42 Louisiana &gt;44 Maine &gt;46 Maryland &gt;47 Massachusetts &gt;49 Michigan &gt;50 Minnesota &gt;51 Mississippi &gt;52 Missouri &gt;53 Montana &gt;54 Nebraska &gt;55 Nevada &gt;58 New Hampshire &gt;59 New Jersey &gt;60 New Mexico &gt;61 New York &gt;63 North Carolina &gt;64 North Dakota &gt;66 Ohio &gt;67 Oklahoma &gt;69 Oregon &gt;72 Pennsylvania &gt;77 Rhode Island &gt;80 South Carolina &gt;81 South Dakota &gt;82 Tennessee &gt;83 Texas &gt;85 Utah &gt;87 Vermont &gt;88 Virginia &gt;89 Washington &gt;90 West Virginia &gt;91 Wisconsin &gt;92 Wyoming</attrdef>
+        <attrdefs>USGS Patuxent Wildlife Research Center</attrdefs>
+        <attrdomv>
+          <rdom>
+            <rdommin>2001</rdommin>
+            <rdommax>92902</rdommax>
+          </rdom>
+        </attrdomv>
+      </attr>
+      <attr>
+        <attrlabl>Rtename</attrlabl>
+        <attrdef>The official name of the BBS route.</attrdef>
+        <attrdefs>USGS Patuxent Wildlife Research Center</attrdefs>
+        <attrdomv>
+          <udom>There is no predefined set of valid route names.</udom>
+        </attrdomv>
+      </attr>
+      <attr>
+        <attrlabl>Rteleng</attrlabl>
+        <attrdef>The length of the route in meters.</attrdef>
+        <attrdefs>USGS Patuxent Wildlife Research Center</attrdefs>
+        <attrdomv>
+          <rdom>
+            <rdommin>10501.5</rdommin>
+            <rdommax>80292.3</rdommax>
+          </rdom>
+        </attrdomv>
+      </attr>
+    </detailed>
+  </eainfo>
+  <distinfo>
+    <distrib>
+      <cntinfo>
+        <cntorgp>
+          <cntorg>Stanford Geospatial Center</cntorg>
+        </cntorgp>
+        <cntaddr>
+          <addrtype>mailing and physical</addrtype>
+          <address>Branner Earth Sciences Library</address>
+          <city>Stanford</city>
+          <state>California</state>
+          <postal>94305</postal>
+          <country>US</country>
+        </cntaddr>
+        <cntvoice>650-723-2746</cntvoice>
+        <cntemail>brannerlibrary@stanford.edu</cntemail>
+      </cntinfo>
+    </distrib>
+    <distliab>Although these data have been processed successfully on a computer system at the USGS Patuxent Wildlife Research Center, no warranty expressed or implied is made regarding the accuracy or utility of the data on any other system or for general or scientific purposes, nor shall the act of distribution constitute any such warranty. This disclaimer applies both to individual use of the data and aggregate use with other data. It is strongly recommended that these data be directly acquired from a U.S. Geological Survey server, and not indirectly through other sources which may have changed the data in some way. It is also strongly recommended that careful attention be paid to the contents of the metadata file associated with these data. The U.S. Geological Survey and USGS Patuxent Wildlife Research Center shall not be held liable for improper or incorrect use of the data described and (or) contained herein.</distliab>
+  </distinfo>
+  <metainfo>
+    <metd>20151106</metd>
+    <metc>
+      <cntinfo>
+        <cntorgp>
+          <cntorg>National Atlas of the United States</cntorg>
+          <cntper>Peg Rawson</cntper>
+        </cntorgp>
+        <cntaddr>
+          <addrtype>mailing</addrtype>
+          <address>12201 Sunrise Valley Dr</address>
+          <address>MS 561</address>
+          <city>Reston</city>
+          <state>VA</state>
+          <postal>20192</postal>
+        </cntaddr>
+        <cntvoice>703-648-4183</cntvoice>
+        <cntemail>atlasmail@usgs.gov</cntemail>
+      </cntinfo>
+    </metc>
+    <metstdn>FGDC Content Standard for Digital Geospatial Metadata</metstdn>
+    <metstdv>FGDC-STD-001-1998</metstdv>
+    <mettc>local time</mettc>
+    <metsi>
+      <metscs>None</metscs>
+      <metsc>Unclassified</metsc>
+      <metshd>None</metshd>
+    </metsi>
+  </metainfo>
+</metadata>

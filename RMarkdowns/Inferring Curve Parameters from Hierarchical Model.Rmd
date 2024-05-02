@@ -1,0 +1,224 @@
+---
+title: "Inferring Curve Parameters from Hierarchical Model"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+Because it is quite long and repetitive, pulling the machinery to calculate the inferred values from the hierarchical models here. 
+
+Note also that this uses the model without the regression terms. 
+
+```{r message = FALSE, warning = FALSE}
+library(tidyverse)
+library(vegan)  
+library(purrr)
+library(stringr)
+library(posterior)
+
+map <- purrr::map
+select <- dplyr::select
+
+logit <- function(x){return(log(x/(1-x)))}
+inv_logit <- function(x){exp(x)/(1+exp(x))}
+```
+
+### Extracting model fitting summaries 
+
+```{r message = FALSE}
+STATS_select_scaled <- read_csv('../Data/STATS_select_SCALED.csv')
+
+read_csv('../Data/All_Average_Curves.csv')%>%
+  left_join(STATS_select_scaled, by = "TransectID") %>%
+  filter( !is.na(Gamma_Div_Ebird))-> UnCenteredData
+```
+
+```{r}
+EXTRACT_ALL_FUNC <- function(Model, BCR){
+  print(BCR)
+  draws <- as_draws_array(Model)
+  Draw_summary <- summarise_draws(draws,  default_summary_measures(), default_convergence_measures())
+  Draw_summary %>%mutate(BCR = BCR ) %>% return()
+}
+
+LOAD_MODELS_FUNC <- function(File){ x<- load(File);  return(Model)}
+```
+
+```{r eval = FALSE}
+list_fits <- list.files('../ModelFits/NoPreds1/', full.names = TRUE)
+Model_list <-map(list_fits, LOAD_MODELS_FUNC)
+SummaryTable<- map2_df(Model_list,
+                       str_extract(list_fits,  '[0-9]+$'),
+                       EXTRACT_ALL_FUNC)
+
+write_csv(SummaryTable, '../ModelSummaries/SummaryTable_NP1.csv')
+```
+
+```{r}
+SummaryTable_WOPreds <- read_csv('../ModelSummaries/SummaryTable_NP1.csv')
+```
+
+
+# Centering data
+
+```{r}
+UnCenteredData %>%
+  group_by(BCR) %>%
+  summarise(mean_HM = mean(Av_HMindex),
+            mean_CV = mean(CV_gpp_scaled),
+            mean_AL = mean(AvRich_100),
+            mean_GM = mean(Gamma_scaled) ) -> BCR_Means
+
+# Center the data
+UnCenteredData %>%
+  left_join(BCR_Means, by = 'BCR') %>%
+  mutate(C_HM = Av_HMindex-mean_HM,
+         C_CV = CV_gpp-mean_CV,
+         C_AL = AvRich_100-mean_AL,
+         C_GM = Gamma_scaled-mean_GM) -> Data_filt_CENTERED
+
+Data_filt_CENTERED %>%
+  nest(data =c(x,y,n)) %>%
+  select(TransectID, starts_with('C_')) %>%
+  distinct()-> Centered_TransectStats
+```
+
+# Inferring curve values 
+
+## d
+```{r}
+BCR_level_terms <- SummaryTable_WOPreds %>%
+  filter(variable == 'b_logitd0_Intercept')%>%
+  separate(variable, into =c('b', 'term', 'type'))%>% 
+  select( term, Est. = median, BCR) %>%
+  pivot_wider( id_cols = BCR, names_from = term, values_from = 'Est.')
+
+Transect_level_terms <- SummaryTable_WOPreds %>%
+  select( variable, RE_term =median      , BCR) %>% 
+  filter(str_detect(variable ,pattern =  'r_TransectID__logitd0')) %>%
+  mutate(TransectID  = str_sub(variable, 23,38 )) %>%
+  select(-variable)
+
+Transect_level_terms %>%
+  left_join(BCR_level_terms, by = "BCR") %>%
+  mutate( InferredD = inv_logit(logitd0 +RE_term   )) -> InferredD_FullModel
+```
+
+## L
+
+```{r}
+
+BCR_level_terms_L <- SummaryTable_WOPreds %>%
+  filter(variable =='b_logL0_Intercept' )%>%
+  separate(variable, into =c('b', 'term', 'type'))%>% 
+  select( term, Est. = median      , BCR) %>%
+  pivot_wider( id_cols = BCR, names_from = term, values_from = 'Est.')
+
+Transect_level_terms_L <- SummaryTable_WOPreds %>%
+  select( variable, RE_termL =median      , BCR) %>% 
+  filter(str_detect(variable ,pattern =  'r_TransectID__logL0')) %>%
+  mutate(TransectID  = str_sub(variable, 21,36 )) %>%
+  select(-variable)
+
+Transect_level_terms_L %>%
+  left_join(BCR_level_terms_L, by = "BCR") %>%
+  mutate( InferredL = exp(logL0  +RE_termL   )) -> InferredL_FullModel
+
+```
+
+## $\omega$
+
+```{r}
+BCR_level_terms_O <- SummaryTable_WOPreds %>%
+  filter(variable == 'b_om0_Intercept')%>%
+  separate(variable, into =c('b', 'term', 'type'))%>% 
+  select( term, Est. = median      , BCR) %>%
+  pivot_wider( id_cols = BCR, names_from = term, values_from = 'Est.')
+
+SummaryTable_WOPreds %>%
+    filter( str_detect(variable ,pattern =  'r_TransectID__om0' ))%>%
+    select(variable, RE_termO = median      , BCR) %>%
+    mutate(TransectID  = str_sub(variable, 19,34 )) -> Transect_level_terms_O
+
+Transect_level_terms_O %>%
+  left_join(BCR_level_terms_O, by = "BCR") %>%
+  mutate( InferredO = om0 +RE_termO ) -> InferredO_FullModel
+
+```
+
+## Sigmas
+
+```{r}
+BCR_level_terms_Sig <- SummaryTable_WOPreds %>%
+  filter(variable =='b_sigma_Intercept')%>% 
+  select(InterceptSig = median, BCR) 
+
+SummaryTable_WOPreds %>%
+    filter( str_detect(variable ,pattern =  'r_TransectID__sigma' ))%>%
+    select(variable, RE_termSig = median, BCR) %>%
+    mutate(TransectID  = str_sub(variable, 19,34 )) -> Transect_level_terms_Sig
+
+Transect_level_terms_Sig %>%
+  left_join(BCR_level_terms_Sig, by = "BCR") %>%
+  mutate( InferredSig_raw = InterceptSig+RE_termSig,
+          InferredSig  = exp(InferredSig_raw)) -> InferredSig_FullModel
+
+```
+
+## Joining Together
+
+```{r}
+left_join(select(InferredD_FullModel,BCR , TransectID, InferredD),
+          select(InferredO_FullModel, BCR , TransectID, InferredO),
+          by = c("BCR", "TransectID")) %>%
+left_join(select(InferredL_FullModel, BCR , TransectID, InferredL),
+          by = c("BCR", "TransectID")) -> AllInferredCurveParams_woP
+
+write_csv(AllInferredCurveParams_woP,'../ModelSummaries/AllCurveParams_WOPreds1.csv')
+
+```
+
+## Identifying Uncertainty in Estimates
+
+Convert SD to VAR, then add, then return to SD
+
+```{r}
+BCR_level_terms_UNCERTAINTY <- SummaryTable_WOPreds %>%
+  filter(variable %in% c('b_logitd0_Intercept', 'b_logL0_Intercept'))%>%
+  separate(variable, into =c('b', 'term', 'type'))%>% 
+  select( term, sd = sd, BCR) %>%
+  pivot_wider( id_cols = BCR, names_from = term, values_from = 'sd')
+
+Transect_level_terms_UNCERTAINTY_D0 <- SummaryTable_WOPreds %>%
+  select( variable, RE_term_logitd0_sd =sd      , BCR) %>% 
+  filter(str_detect(variable ,pattern =  'r_TransectID__logitd0')) %>%
+  mutate(TransectID  = str_sub(variable, 23,38 )) %>%
+  select(-variable)
+
+Transect_level_terms_UNCERTAINTY_LO <- SummaryTable_WOPreds %>%
+  select( variable, RE_term_logL0_sd =sd      , BCR) %>% 
+  filter(str_detect(variable ,pattern =  'r_TransectID__logL0')) %>%
+  mutate(TransectID  = str_sub(variable, 21,36 )) %>%
+  select(-variable)
+
+Transect_level_terms_UNCERTAINTY_D0 %>%
+  left_join(Transect_level_terms_UNCERTAINTY_LO,
+            by = c('BCR', "TransectID")) %>%
+  left_join(BCR_level_terms_UNCERTAINTY,
+            by = "BCR") %>%
+  mutate( InferredD_SD =  sqrt(RE_term_logitd0_sd^2 + logitd0^2),
+          InferredL_SD =  sqrt(RE_term_logL0_sd^2 + logL0^2)) -> Inferred_UnCertainty
+
+write_csv(Inferred_UnCertainty,'../ModelSummaries/Inferred_UnCertaintyDL.csv')
+```
+
+
+
+# Session Info
+
+```{r}
+sessionInfo()
+```
+
+
+

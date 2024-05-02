@@ -1,0 +1,547 @@
+---
+title: "Final Output of Figures"
+output: 
+  html_document: 
+    toc: yes
+editor_options: 
+  chunk_output_type: console
+---
+
+This document collates the results calculated in other scripts to make the bulk of the final figures for the MS.
+
+```{r message = FALSE, warning = FALSE}
+library(tidyverse)
+library(vegan)  
+library(purrr)
+library(brms)
+library(stringr)
+library(bayesplot)
+library(tidybayes)
+library(posterior)
+library(cowplot)
+library(scales)
+
+
+map <- purrr::map
+select <- dplyr::select
+
+logit <- function(x){return(log(x/(1-x)))}
+inv_logit <- function(x){exp(x)/(1+exp(x))}
+
+
+read_csv('../Data/All_Average_Curves.csv')%>%
+  left_join(read_csv('../Data/STATS_select_SCALED.csv'), by = "TransectID") %>%
+  filter( !is.na(Gamma_Div_Ebird))-> UnCenteredData
+
+STATS <- read_csv('../Data/STATS.csv')
+STATS_select <- read_csv('../Data/STATS_select.csv')
+STATS_select_scaled <- read_csv('../Data/STATS_select_SCALED.csv')
+
+RichnessSlope_df <- read_csv('../ModelSummaries/RichnessSlope_df.csv')
+
+STR_fit_df <- read_csv('../ModelSummaries/STR_AllBCRs_Seperate.csv')
+STR <- read_csv('../ModelFits/STR_fitsdf.csv')
+
+InitialDecay_df<- read_csv('../ModelSummaries/InitialDecay_df.csv')
+InitSlop_fit   <- read_csv('../ModelSummaries/InitSlop_Overall_Results.csv')
+
+## Loading fits 
+SummaryTableRE_Human  <- read_csv('../ModelSummaries/SummaryTable_ALL3.csv')
+AllInferredCurveParams<- read_csv('../ModelSummaries/AllCurveParams_WOPreds1.csv') # made elsewhere
+
+AllCurveCoefs<- read_csv('../ModelSummaries/AllCurveCoefs.csv')
+Inferred_UnCertainty <- read_csv('../ModelSummaries/Inferred_UnCertaintyDL.csv')
+
+
+
+```
+
+# Main Results - Figure 4 
+
+## Left side - histograms of parameters
+```{r}
+
+DF<-AllInferredCurveParams %>%
+  left_join(RichnessSlope_df, by = "TransectID") %>%
+  left_join(select(STR, TransectID, LogLog_z), by = "TransectID") %>%
+  left_join(select(InitialDecay_df, TransectID, InitialDecay=Trend ), by = "TransectID")
+
+Histogram_theme <- theme_minimal()+theme(axis.title = element_blank())
+
+Hist_Richness<-   ggplot(DF, aes( x= Trend))+
+  geom_histogram(bins = 100)+Histogram_theme+
+  ggtitle('e) ΔR Species Richness Trend')+
+  theme(axis.text.y = element_blank())
+
+Hist_Accum<-   ggplot(DF, aes( x= LogLog_z))+
+  geom_histogram(bins = 100)+Histogram_theme +
+  ggtitle('f) z Species Accumulation Exponent')+
+  theme(axis.text.y = element_blank())
+
+
+Hist_Decay <-   DF %>%
+  filter( InitialDecay >-0.02) %>%
+  ggplot(aes( x=InitialDecay ))+
+  geom_histogram(bins = 100)+Histogram_theme +
+  ggtitle('d) ΔS Initial Similarity Decay')+
+  theme(axis.text.y = element_blank())
+
+Hist_Omega<-   ggplot(DF, aes( x= InferredO))+
+  geom_histogram(bins = 100)+Histogram_theme+
+  ggtitle('a) ω Observation Repeatability') +
+  theme(axis.text.y = element_blank())
+
+Hist_L<-  ggplot(DF, aes( x= 
+                       InferredL))+ 
+  geom_histogram(bins = 100)+Histogram_theme+
+  scale_x_log10()+
+  ggtitle('c) L Similarity Decay Rate')+
+  theme(axis.text.y = element_blank())
+
+Hist_d<- ggplot(DF, aes( x= InferredD))+
+  geom_histogram(bins = 100)+Histogram_theme+
+  ggtitle('b) d Asymptopic Similarity')+
+  theme(axis.text.y = element_blank())
+```
+
+## Right-Side - Posteriors of predictors on turnover component
+
+```{r}
+x_scale_labels <-  c('Human\nImpact' ,
+                              'Env.\nVariability', 
+                              'Species\nRichness',
+                              'Species\nPool', 
+                              'Year\nSpan')
+
+right_rich <- read_csv('../ModelSummaries/Richness_Overall_Results.csv')%>%
+  filter(variable=='b_Intercept')%>%
+  mutate(P2 = recode(Predictor,
+                     'Humans'='Human\nImpact' ,
+                     'CV'  ='Env.\nVariability', 
+                     'Alpha'  ='Species\nRichness',
+                     'Gamma' ='Species\nPool', 
+                     'YearSpan' = 'Year\nSpan')) %>%
+  ggplot( aes( x = P2))+
+    geom_point(aes(y = mean))+
+  geom_linerange(aes(ymin = q5, ymax = q95), col = 'grey10')+
+  geom_hline(yintercept =0)+
+  theme(panel.grid.major.x = element_blank())+
+  ggtitle('')+ theme_minimal()+ ylab('')+xlab('')+
+  scale_x_discrete(limits =x_scale_labels)
+
+
+right_str <- read_csv('../ModelSummaries/STR_Overall_Results.csv')%>%
+  filter(variable=='b_Intercept')%>%
+  mutate(P2 = recode(Predictor,
+                     'Humans'='Human\nImpact' ,
+                     'CV'  ='Env.\nVariability', 
+                     'Alpha'  ='Species\nRichness',
+                     'Gamma' ='Species\nPool', 
+                     'YearSpan' = 'Year\nSpan')) %>%
+  ggplot( aes( x = P2))+
+    geom_point(aes(y = mean))+
+  geom_linerange(aes(ymin = q5, ymax = q95), col = 'grey10')+
+  geom_hline(yintercept =0)+
+  theme(panel.grid.major.x = element_blank())+
+  ggtitle('')+
+  theme_minimal()+ ylab('')+xlab('')+
+  scale_x_discrete(limits = x_scale_labels)
+
+right_Slop <- read_csv('../ModelSummaries/InitSlop_Overall_Results.csv')%>%
+  filter(variable=='b_Intercept')%>%
+  mutate(P2 = recode(Predictor,
+                     'Humans'='Human\nImpact' ,
+                     'CV'  ='Env.\nVariability', 
+                     'Alpha'  ='Species\nRichness',
+                     'Gamma' ='Species\nPool', 
+                     'YearSpan' = 'Year\nSpan')) %>%
+  ggplot( aes( x = P2))+
+    geom_point(aes(y = mean))+
+  geom_linerange(aes(ymin = q5, ymax = q95), col = 'grey10')+
+  geom_hline(yintercept =0)+
+  theme(panel.grid.major.x = element_blank())+
+  ggtitle('')+
+  theme_minimal()+ ylab('')+xlab('')+
+  scale_x_discrete(limits = x_scale_labels)
+
+AllCurveCoefs%>%
+  mutate( P2 = recode(Predictor,
+                      'HM'='Human\nImpact' ,
+                      'CV'  ='Env.\nVariability', 
+                      'AL'  ='Species\nRichness',
+                      'GM' ='Species\nPool',
+                      'YS' = 'Year\nSpan')) -> AllCurveCoefs2
+
+right_omeg<- ggplot(  filter(AllCurveCoefs2, Response =='o'), aes( x = P2))+
+    geom_point(aes(y = mean))+
+  geom_linerange(aes(ymin = q5, ymax = q95), col = 'grey10')+
+  geom_hline(yintercept =0)+
+  ggtitle('')+ theme_minimal()+ ylab('')+xlab('')+
+  theme(panel.grid.major.x = element_blank())+
+  scale_x_discrete(limits = x_scale_labels)
+
+right_L<- ggplot(  filter(AllCurveCoefs2, Response =='L'), aes( x = P2))+
+    geom_point(aes(y = mean))+
+  geom_linerange(aes(ymin = q5, ymax = q95), col = 'grey10')+
+  geom_hline(yintercept =0)+
+  ggtitle('')+ theme_minimal()+ ylab('')+xlab('')+
+  theme(panel.grid.major.x = element_blank())+
+  scale_x_discrete(limits = x_scale_labels)
+
+right_d<- ggplot(  filter(AllCurveCoefs2, Response =='d'), aes( x = P2))+
+    geom_point(aes(y = mean))+
+  geom_linerange(aes(ymin = q5, ymax = q95), col = 'grey10')+
+  geom_hline(yintercept =0)+
+  ggtitle('')+ theme_minimal()+ ylab('')+xlab('')+
+  theme(panel.grid.major.x = element_blank())+
+  scale_x_discrete(limits = x_scale_labels)
+```
+
+## Complete plot
+
+```{r}
+plot_grid( 
+  plot_grid(Hist_Omega,Hist_d,Hist_L, ncol=1),
+  plot_grid(right_omeg, right_d,right_L,ncol = 1),
+  plot_grid(Hist_Decay,Hist_Richness,Hist_Accum, ncol=1),
+  plot_grid(right_Slop, right_rich,right_str,
+            ncol = 1),
+  rel_widths = c(2,4,2,4), ncol = 4
+)-> MainResults
+
+MainResults
+
+ggsave( '../MS_figs/MainResults.png', plot = MainResults,
+        height = 8, width = 12, bg = "white", dpi = 100)
+
+ggsave( '../MS_figs/MainResults_HiRES.png', plot = MainResults,
+        height = 8, width = 12, bg = "white", dpi = 600)
+
+```
+# Results split by BCR - SI 2
+
+```{r}
+### Similarity Decay
+
+SummaryTableRE_Human%>% 
+  filter(str_detect(variable, 'beta'))%>%
+  mutate(Response = str_sub(variable,7,7),
+         Predictor = str_sub(variable,8,9)) %>%
+  select( Coefs =mean,SE = sd, BCR, Response, Predictor)-> SimDecay_BCR_forplot
+
+### STR by BCR (NB 2x SE, not 90%)
+AllBCRs_Seperate_STR <- read_csv('../ModelSummaries/STR_AllBCRs_SeperateLM.csv' )
+
+Coefs<-  pivot_longer(AllBCRs_Seperate_STR, names_to = 'Predictor',cols =  starts_with('Coefs'),
+                values_to = 'Coefs', names_prefix = 'Coefs') %>%
+    select( BCR, Predictor, Coefs)
+
+SEs<-  pivot_longer(AllBCRs_Seperate_STR, names_to = 'Predictor',cols =  starts_with('SE_'),
+                values_to = 'SE', names_prefix = 'SE_') %>%
+    select( BCR, Predictor, SE)  
+  
+left_join(Coefs, SEs, by = c("BCR", "Predictor")) %>%
+  filter(Predictor != '(Intercept)')%>%
+  mutate(Response= 'z')-> STR_BCR_forplot
+  
+### Richness Trends by BCR  
+
+AllBCRs_Seperate_Richness<- read_csv('../ModelSummaries/Richness_AllBCRs_SeperateLM.csv' ) %>%
+  filter(n>=25)  ### Take out BCRs that don't have at least 25 transects
+
+Coefs<-  pivot_longer(AllBCRs_Seperate_Richness, names_to = 'Predictor',cols =  starts_with('Coefs'),
+                values_to = 'Coefs', names_prefix = 'Coefs') %>%
+    select( BCR, Predictor, Coefs)
+
+SEs<-  pivot_longer(AllBCRs_Seperate_Richness, names_to = 'Predictor',cols =  starts_with('SE_'),
+                values_to = 'SE', names_prefix = 'SE_') %>%
+    select( BCR, Predictor, SE) 
+  
+left_join(Coefs, SEs, by = c("BCR", "Predictor")) %>%
+  filter(Predictor != '(Intercept)')%>%
+  mutate(Response = 'RichTrend')  -> Richness_BCR_forplot
+
+### Initial Slope
+
+AllBCRs_Seperate_InitSlop <- read_csv('../ModelSummaries/AllBCRs_Seperate_InitSlopLM.csv')
+
+Coefs<-  pivot_longer(AllBCRs_Seperate_InitSlop, names_to = 'Predictor',cols =  starts_with('Coefs'),
+                values_to = 'Coefs', names_prefix = 'Coefs') %>%
+    select( BCR, Predictor, Coefs)
+
+SEs<-  pivot_longer(AllBCRs_Seperate_InitSlop, names_to = 'Predictor',cols =  starts_with('SE_'),
+                values_to = 'SE', names_prefix = 'SE_') %>%
+    select( BCR, Predictor, SE) 
+  
+left_join(Coefs, SEs, by = c("BCR", "Predictor")) %>%
+  filter(Predictor != '(Intercept)')%>%
+  mutate(Response = 'InitSlope')  -> InitSlope_BCR_forplot
+
+## joining all Together
+
+bind_rows(SimDecay_BCR_forplot,
+          STR_BCR_forplot,
+          Richness_BCR_forplot,
+          InitSlope_BCR_forplot) %>%
+  mutate(P2 = recode(Predictor,
+                     'HM'='Human Impact' ,
+                     'CV'  ='Variability', 
+                     'AL'  ='Species Richness',
+                     'GM' ='Species Pool', 
+                     'YS' = 'Year Span',
+                     'Av_HMindex'='Human Impact' ,
+                     'CV_gpp_scaled'  ='Variability', 
+                     'AvRich_100'  ='Species Richness',
+                     'Gamma_scaled' ='Species Pool', 
+                     'N_years50' = 'Year Span',
+                     'Year_span50' = 'Year Span',
+                     'Year_span_scaled' = 'Year Span'),
+         R2 = recode(Response,
+                     'd'='d (Asymptopic Similarity))' ,
+                     'L'  ='L (Similarity Decay Timescale)', 
+                     'o'  ='ω (Observation Repeatability)',
+                     'RichTrend' ='ΔR (Trend In Species Richness)', 
+                     'z' = 'z (Species Accumulation Exponent)',
+                     'InitSlope' = 'ΔS (Initial Slope)'))-> AllResponses_BCR_forplot
+```
+
+```{r}
+
+A<- AllResponses_BCR_forplot  %>%
+  filter( Response =='o') %>%
+  ggplot( aes( x = factor(BCR)))+
+  geom_pointrange(aes(y = Coefs, ymin = Coefs+2*SE, ymax = Coefs-2*SE))+
+  facet_wrap(~P2, scales = 'free',nrow=1)+
+  geom_hline(yintercept =0)+
+  theme_minimal()+
+  theme(axis.title = element_blank(),
+        axis.text.x = element_text(size = 5, angle = 90))+
+  ggtitle('a) ω (Observation Repeatability)')
+
+B<- AllResponses_BCR_forplot  %>%
+  filter( Response =='d') %>%
+  ggplot( aes( x = factor(BCR)))+
+  geom_pointrange(aes(y = Coefs, ymin = Coefs+2*SE, ymax = Coefs-2*SE))+
+  facet_wrap(~P2, scales = 'free',nrow=1)+
+  geom_hline(yintercept =0)+
+  theme_minimal()+
+  theme(axis.title = element_blank(),
+        axis.text.x = element_text(size = 5, angle = 90))+
+  ggtitle('b) d (Asymptopic Similarity)' )
+
+C<- AllResponses_BCR_forplot  %>%
+  filter( Response =='L') %>%
+  ggplot( aes( x = factor(BCR)))+
+  geom_pointrange(aes(y = Coefs, ymin = Coefs+2*SE, ymax = Coefs-2*SE))+
+  facet_wrap(~P2, scales = 'free',nrow=1)+
+  geom_hline(yintercept =0)+
+  theme_minimal()+
+  theme(axis.title = element_blank(),
+        axis.text.x = element_text(size = 5, angle = 90))+
+  ggtitle('c) L (Similarity Decay Rate)')
+
+D<- AllResponses_BCR_forplot  %>%
+  filter( Response =='InitSlope') %>%
+  ggplot( aes( x = factor(BCR)))+
+  geom_pointrange(aes(y = Coefs, ymin = Coefs+2*SE, ymax = Coefs-2*SE))+
+  facet_wrap(~P2, scales = 'free',nrow=1)+
+  geom_hline(yintercept =0)+
+  theme_minimal()+
+  theme(axis.title = element_blank(),
+        axis.text.x = element_text(size = 5, angle = 90))+
+  ggtitle('d) ΔS (Initial Slope)' )
+
+E<- AllResponses_BCR_forplot  %>%
+  filter( Response =='RichTrend') %>%
+  ggplot( aes( x = factor(BCR)))+
+  geom_pointrange(aes(y = Coefs, ymin = Coefs+2*SE, ymax = Coefs-2*SE))+
+  facet_wrap(~P2, scales = 'free',nrow=1)+
+  geom_hline(yintercept =0)+
+  theme_minimal()+
+  theme(axis.title = element_blank(),
+        axis.text.x = element_text(size = 5, angle = 90))+
+  ggtitle('e) ΔR (Trend In Species Richness)')
+
+F.<- AllResponses_BCR_forplot  %>%
+  filter( Response =='z') %>%
+  ggplot( aes( x = factor(BCR)))+
+  geom_pointrange(aes(y = Coefs, ymin = Coefs+2*SE, ymax = Coefs-2*SE))+
+  facet_wrap(~P2, scales = 'free',nrow=1)+
+  geom_hline(yintercept =0)+
+  theme_minimal()+
+  theme(axis.title = element_blank(),
+        axis.text.x = element_text(size = 5, angle = 90))+
+  ggtitle( 'f) z (Species Accumulation Exponent)')
+
+
+ALL_BCR_SIResults <-plot_grid(A,B, C, D, E,F., ncol=1)
+
+ggsave( '../MS_figs/SI2_BCR_level_results.png',
+        ALL_BCR_SIResults,
+        height = 18, width = 12, bg = 'white')
+
+
+```
+
+# Other Plots and Data Summmaries
+
+## Basic Stats of Transects
+
+```{r}
+AllInferredCurveParams %>%
+  left_join(STATS, by = c("BCR", "TransectID")) %>%
+  summarise(N_Transects = n(),
+            Av_N_Surveys = mean(N_Surveys),
+            Av_N_YearSpan = mean(Year_span), 
+            sd_N_Surveys = sd(N_Surveys),
+            sd_N_YearSpan = sd(Year_span)
+  )
+```
+
+### Correlation in predictor variables (SI 1B)
+
+```{r}
+UnCenteredData %>%
+  select('Human\nImpact'=Av_HMindex,
+         'Variability'=  CV_gpp_scaled,
+         'Species\nPool'= Gamma_Div_Ebird ,
+         'Species\nRichness' = Average_Richness,
+         'Year\nSpan'=Year_span,
+         BCR, TransectID)  %>%
+  distinct() %>%
+  filter(TransectID %in% AllInferredCurveParams$TransectID)-> CorrData
+
+Values<- CorrData %>%pivot_longer(1:5,
+               names_to="x_var", values_to="x_val")
+Values2 <- rename(Values, y_var = x_var, y_val = x_val)
+
+full_join(Values, Values2, by = c("TransectID", "BCR")) %>%
+  select(-TransectID) %>%
+  filter( x_var != y_var) %>%
+  nest(data=c(x_val, y_val)) %>%
+  mutate(cor = map_dbl(data, ~cor(.x$x_val, .x$y_val, method = 'pearson'))) %>%
+  group_by(x_var,y_var    ) %>%
+  summarise( mean_cor = mean(cor),
+             sd_cor = sd(cor)) -> Average_Within_BCR_Corrs
+
+full_join(Values, Values2, by = c("TransectID", "BCR")) %>%
+  select(-TransectID, -BCR) %>%
+  filter( x_var != y_var) %>%
+    nest(data=c(x_val, y_val)) %>%
+  mutate(cor = map_dbl(data, ~cor(.x$x_val, .x$y_val, method = 'pearson'))) %>%
+  select(-data) -> Overall_Corrs
+
+Overall_Corrs %>%
+  ggplot(aes( x = x_var, y = y_var, fill = cor))+
+  geom_tile()+
+  geom_text(aes(label = paste(signif(cor,3) )))+
+  scale_fill_gradient2(limits = c(-1, 1), name = 'Correlation  ')+
+  ggtitle('i) Overall')+
+  theme_minimal()+ coord_fixed()+
+  theme(panel.grid = element_blank(),
+        legend.position = 'bottom')+
+  xlab('')+ylab('') -> OverallCorr
+
+Average_Within_BCR_Corrs %>%
+  ggplot(aes( x = x_var, y = y_var, fill = mean_cor))+
+  geom_tile()+
+  # geom_text(aes(label = paste('Mean =',signif(mean_cor,3),
+  #                             '\nSD =',signif(sd_cor,3) )))+
+  geom_text(aes(label = paste(signif(mean_cor,3))))+
+  scale_fill_gradient2(limits = c(-1, 1), name = 'Correlation  ')+
+  ggtitle('ii) Average Within-BCR')+
+  theme_minimal()+ coord_fixed()+
+  theme(panel.grid = element_blank(),
+        legend.position = 'bottom')+
+  xlab('')+ylab('') -> WithinBCRCORR
+
+
+CorrelationSI_Fig <- plot_grid(OverallCorr , WithinBCRCORR)
+CorrelationSI_Fig
+
+
+```
+
+
+### Distribution of values of predictors  (SI 1A)
+```{r}
+UnCenteredData %>%
+  left_join(STATS) %>%
+  select('i) Human Impact'=Av_HMindex,
+         'ii) Environmental Variability'=  CV_gpp_scaled,
+         'iii) Species Pool'= Gamma_Div_Ebird ,
+         'iv) Species Richness' = Average_Richness,
+         'v) Year Span'=Year_span,
+         'vi) Number of Surveys on Transect' = N_Surveys,
+         'vii) Number of "Permanent" Species'=N_Permanent,
+         'viii) Initial Year' =StartYear,
+         BCR, TransectID)  %>%
+  distinct()  %>%
+  filter(TransectID %in% AllInferredCurveParams$TransectID)%>%
+  pivot_longer(1:8,
+               names_to="x_var", values_to="x_val")%>%
+  ggplot( aes( x = x_val))+
+  geom_histogram(bins=20)+
+  facet_wrap(~x_var, scales = 'free_x', nrow = 2)+
+  theme_minimal()+xlab('')+ylab('')+
+  theme(strip.text = element_text(hjust = 0))+
+  ggtitle('')-> SIFig1_dist
+
+SIFig1_dist
+
+```
+
+### Joining
+
+```{r}
+
+SIfig1 <- plot_grid( SIFig1_dist, CorrelationSI_Fig, ncol = 1,
+           labels = c( 'A', 'B'))
+
+ggsave( '../MS_figs/SI1_corrs.png',
+        SIfig1,
+        width = 10, height = 10, bg='white')
+```
+
+## Correlations in Fitted Values of Similarity Decay (SI 3)
+
+```{r}
+AllInferredCurveParams %>%
+  left_join(Inferred_UnCertainty, by = c("BCR", "TransectID")) %>%
+  arrange(InferredD) %>%
+  ggplot(aes( x = InferredD,  InferredL, col = InferredD_SD ))+
+  geom_point(size = 1)+
+  scale_y_log10()+
+  scale_colour_viridis_c(name = 'Uncertainty in d\n(SD of posterior)')+
+  theme_minimal()+
+  theme(legend.position = 'bottom')+
+  xlab('Inferred Asymptote (d)')+
+  ylab('Inferred Decay Rate (L)')
+
+ggsave('../MS_figs/SI3_LDCorr.png', width = 5, height = 7, bg = 'white' )
+```
+
+### Impact of Year Span on uncertainty in d (Not in MS)
+
+```{r}
+SummaryTableRE_Human %>%
+  filter(str_detect(variable ,pattern =  'r_TransectID__logitd0')) %>%
+  select( variable, RE_term_logitd0_sd =sd      , BCR) %>% 
+  mutate(TransectID  = str_sub(variable, 23,38 )) %>%
+  select(-variable) %>%
+  left_join(STATS_select_scaled, by = c("BCR", "TransectID")) -> UnCertaintyinD
+
+UnCertaintyinD%>%
+  ggplot(aes( x = Year_span_scaled, y=RE_term_logitd0_sd ))+
+  geom_point()+
+  geom_smooth()
+
+```
+
+
+# Session Info
+
+```{r}
+sessionInfo()
+```
+

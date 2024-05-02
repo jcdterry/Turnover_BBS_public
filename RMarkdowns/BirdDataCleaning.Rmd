@@ -1,0 +1,197 @@
+---
+title: "Turnover Data Cleaning"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r message = FALSE, warning = FALSE}
+library(tidyverse)
+library(vegan)  
+library(purrr)
+library(stringr)
+map <- purrr::map
+select <- dplyr::select
+```
+
+This document details the various cleaning steps done to the raw BBS data. 
+
+# Loading data
+
+Raw data source:
+https://www.pwrc.usgs.gov/BBS/RawData/
+
+Which leads through to:
+
+https://www.sciencebase.gov/catalog/item/52b1dfa8e4b0d9b325230cd9
+
+Here used the 2020 release. 
+
+## Unziping data
+
+```{r eval = FALSE}
+### Un zipping all csvs
+Zipped<-list.files('../Data/2020Release_Nor/States/',pattern=".zip", full.names = TRUE, include.dirs = TRUE)
+map(Zipped, function(x){unzip(x, exdir = '../Data/2020Release_Nor/Unzipped')})
+```
+
+### Combining all the seperate state csvs
+
+```{r eval = FALSE}
+AllCSVs<-list.files('../Data/2020Release_Nor/Unzipped/', full.names = TRUE)
+
+## nb has 6.7 million rows so needs to be handled with care!
+All_states_orig <- map_df(AllCSVs, read_csv,
+                          col_select = c(RouteDataID ,
+                                         CountryNum ,
+                                         StateNum ,
+                                         Route ,
+                                         RPID ,
+                                         Year,
+                                         AOU ,
+                                         StopTotal ,
+                                         SpeciesTotal ),
+                          col_types = cols(
+                            RouteDataID = col_double(),
+                            CountryNum = col_double(),
+                            StateNum = col_character(),
+                            Route = col_character(),
+                            RPID = col_double(),
+                            Year = col_double(),
+                            AOU = col_character(),
+                            StopTotal = col_double(),
+                            SpeciesTotal = col_double()
+                          ))
+All_states_orig %>%
+  mutate(TransectLocID = paste0('C_',CountryNum,'_S_', StateNum,'_R_', Route )) %>%
+  select(TransectLocID, Year ,AOU,RPID) -> XX
+ write_csv(XX, file = '../Data/2020Release_Nor/AllStates.csv')
+```
+
+```{r}
+XX<- read_csv('../Data/2020Release_Nor/AllStates.csv')
+
+IDS<- unique(XX$TransectLocID)  
+
+weather <- read_csv( '../Data/2020Release_Nor/weather.csv') %>%
+  mutate(TransectLocID = paste0('C_',CountryNum,'_S_', StateNum,'_R_', Route )) 
+
+AllSpeciesNames <- read_csv('../Data/2020Release_Nor/SpeciesList_clean.txt', trim_ws = TRUE) %>%
+  mutate(AOU = parse_number(AOU)) %>%
+  select( AOU, English_Common_Name,  ORDER,Family,Genus,Species)
+
+
+routes <- read_csv('../Data/2020Release_Nor/routes.csv') %>%
+  mutate(TransectLocID = paste0('C_',CountryNum,'_S_', StateNum,'_R_', Route ))
+
+```
+
+## Removing bad surveys and tricky species
+
+Following this advice: https://ecologicaldata.org/wiki/breeding-bird-survey-north-america
+
+*For community analyses it is generally best to exclude nocturnal, crepuscular, and aquatic species as they are not well sampled. (That is, exclude AOU species codes <=2880 [waterbirds, shorebirds, etc], (>=3650 & <=3810) [owls], (>=3900 & <=3910) [kingfishers], (>=4160 & <=4210) [nightjars], 7010 [dipper].)*
+*Surveys where RunType in the Weather table is 0 should be excluded as this indicates a survey that does not pass quality standards.*
+*Only use the Run Protocol IDs (counts.RPID) that are appropriate for your study. If you just want standard BBS surveys, use RPID = 101. "Runtype = 0 indicates that the data were not collected according to prescribed methods and/or were collected during unsuitable weather conditions. "*
+
+*StopTotal is a measure of incidence (number of point count stops out of 50 at which the species was observed), SpeciesTotal is a measure of abundance (total number of individuals across all stops)*
+
+*Also, species taxonomy changes through time. . For example, it is not possible to retroactively assign all observations of Traill’s Flycatcher made before the species was split into the two separate species, Alder and Willow Flycatcher*
+
+```{r}
+XX %>% 
+  left_join(select( weather, TransectLocID, Year, RunType ), by = c("TransectLocID", "Year")) %>%  # Join summary of routes
+  filter( RunType == 1) %>% ## weather, survey type and protocol all good. (see RunType.pdf)
+  mutate(AOU = parse_number(AOU)) %>% 
+  left_join(AllSpeciesNames, by = "AOU") %>%
+  filter(AOU > 2880) %>%  # exclude waterbirds, shorebirds, etc
+  filter(AOU < 3650 | AOU > 3810) %>%  # Owls
+  filter(AOU < 3900 | AOU > 3910) %>%  # Kingfishers
+  filter(AOU < 4160 | AOU > 4210) %>%  #  crepuscular nightjars 
+  filter(AOU != 7010) %>%              # dipper (aquatic songbird)  
+  filter(ORDER != "Accipitriformes",   # hawks, eagles, vultures, and kites
+         ORDER != "Falconiformes",     # falcons
+         ORDER != "Anseriformes",    # waterfowl 
+         ORDER != "Cathartiformes") %>% # vultures
+  filter( Species != 'Sp.') %>%            # not identified to species 
+  filter( !str_detect(Species, ' x ')) %>% ## remove hybrids / subsepcies (not many records)
+  rename( Order = ORDER) -> FocalSpecies_df
+
+```
+
+## Taxonomic challenges
+
+A moderate number of species have changed their taxonomy through time, mostly the splitting or lumping of species / subspecies. 
+
+```{r}
+FocalSpecies_df %>%
+  count(AOU, Genus, Species) %>%
+  mutate( Binomial = paste( Genus, Species)) %>% 
+  mutate(ProblemTaxa = str_detect(Species, '/')) %>%
+  filter( ProblemTaxa ) %>%
+  separate(Species , into = c( 'Sp1', 'Sp2', 'Sp3'), sep = ' / ', remove = FALSE)%>%  # as.data.frame
+  select( ConsolAOU = AOU,Genus,Species, Sp1,Sp2,Sp3,ProblemTaxa ) %>%
+  gather( Col, Species,    Species:Sp3)  -> ProblemTaxa
+
+
+FocalSpecies_df %>%
+  left_join( ProblemTaxa, by = c("Genus", "Species")) %>%
+  mutate( ConsolAOU = if_else(is.na(ConsolAOU), AOU, ConsolAOU ),
+          ProblemTaxa = !is.na(ProblemTaxa) ) %>%
+  select(TransectLocID,Year,AOU, English_Common_Name ,ConsolAOU, ProblemTaxa ) -> FocalSpecies_df_consol
+```
+
+#### Saving names for ranges
+```{r}
+FocalSpecies_df_consol %>%
+  distinct(  AOU ,English_Common_Name,ConsolAOU ,ProblemTaxa) %>%
+  write_csv('../Data/Consol_SpeciesNames.csv')
+```
+
+
+## Building presence / Absence matrix
+
+Takes about 30 minutes (pivot_wider is not very fast)
+
+```{r eval = FALSE}
+## Combine the problem taxa (also removes what might be occasional duplicate surveys  eg id = 'C_840_S_02_R_141')
+FocalSpecies_df_consol %>%
+  distinct(TransectLocID, Year ,ConsolAOU)%>%
+  group_by(TransectLocID) %>%
+  nest()  -> CompactData_df_nest
+
+
+matrix_form<-map(1:nrow(CompactData_df_nest),
+                 function(id, alldata){
+                   cat(id)
+                   gc()
+                   alldata$data[[id]]%>%
+                     mutate( Present =1) %>%
+                     pivot_wider(id_cols = Year,
+                                 names_from = ConsolAOU,
+                                 values_from = Present ,
+                                 values_fill = 0)%>%
+                     as.matrix()%>%
+                     return()
+                 }, CompactData_df_nest ) 
+
+names(matrix_form) <- CompactData_df_nest$TransectLocID
+save(matrix_form, file = '../Data/2020Release_Nor/matrix_form_filt1')
+```
+
+# Session info
+```{r}
+sessionInfo()
+
+```
+
+
+
+
+
+
+

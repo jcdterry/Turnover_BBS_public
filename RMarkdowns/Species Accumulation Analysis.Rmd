@@ -1,0 +1,223 @@
+---
+title: "Species Accumulation Analyses"
+output: 
+  html_document: 
+    toc: yes
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+This document calculates the species accumulation rates for each transect, then examines for trends within and across the BCRs. 
+
+```{r message = FALSE, warning = FALSE}
+library(tidyverse)
+library(brms)
+library(posterior)
+library(vegan)
+map <- purrr::map
+select <- dplyr::select
+```
+
+# Data cleaning and calculation of accumulation curves
+
+```{r eval = FALSE}
+load(file = '../Data/2020Release_Nor/matrix_form_filt1')  ### list of matrices
+
+Transect_Vec <- pluck(read_csv('../ModelSummaries/AllInferredCurveParams2.csv'), 'TransectID')       ## just for list of transects to use
+
+# matrix_input <- matrix_form[[1]] # for testing
+
+matrix_form[names(matrix_form) %in% Transect_Vec] %>%
+  map(   function(matrix_input){
+
+    # cat('.')
+    # if(nrow(matrix_input)==1){ ## catch annoying short year that sneaks through
+    #   return(data.frame(Year1 = matrix_input[1,1],Year2 =  matrix_input[1,1] ,
+    #                     YearDiff = 0,  JaccDist = 0,  SorenDist = 0) )}
+
+    ### doing the filtering of very erratic years in here 
+    Richnesses <- rowSums(matrix_input[,-1])
+      LowerBound =  mean(Richnesses) -2 *sd(Richnesses)
+      UpperBound =  mean(Richnesses) +2 *sd(Richnesses)
+      YearsToKeep <- Richnesses>LowerBound & Richnesses<UpperBound
+      matrix_input<- matrix_input[YearsToKeep, ]
+      
+      YEARS <- matrix_input[,1]
+      
+      XX <- specaccum(matrix_input, method = 'collector')
+      
+      str_data <- data.frame( sample = 1:nrow(matrix_input),
+                              Year =YEARS,
+                              accum_richness= XX$richness) %>%
+        mutate(Time = Year-min(Year),
+               log_time = log(Time), 
+               log_accum_richness = log(accum_richness))%>%
+        mutate(Cut = sample  <5 ) 
+      
+      return(str_data)
+  }) %>%
+  map_dfr(.f = ~.,.id = 'TransectID')-> STR_raw_df
+
+write_csv(STR_raw_df, '../ModelFits/STR_raw_df.csv') 
+```
+
+```{R eval = FALSE}
+STR_raw_df <- read_csv('../ModelFits/STR_raw_df.csv')
+Transect_Vec2 <- unique(STR_raw_df$TransectID)
+
+map_df(Transect_Vec2,
+         function(TransectID_i, STR_raw_df){
+    
+    str_data <- filter( STR_raw_df, TransectID== TransectID_i, !Cut) # drop first four points
+    
+    str_fit <- lm(log_accum_richness~log_time, data = str_data)  
+    LogLog_c <- coefficients(str_fit)[1]
+    LogLog_z <- coefficients(str_fit)[2]
+    LogLog_r2 <- summary(str_fit)$r.squared
+    LogLogSE_trend =   sqrt(diag(vcov(str_fit)))[2]
+
+    
+    str_fit2 <- lm(accum_richness~log_time, data = str_data) 
+    Log_c <- coefficients(str_fit2)[1]
+    Log_z <- coefficients(str_fit2)[2]
+    Log_r2 <- summary(str_fit2)$r.squared
+    LogSE_trend =   sqrt(diag(vcov(str_fit2)))[2]
+
+    return(data.frame(TransectID = TransectID_i,
+                      LogLog_c = LogLog_c,
+                      LogLog_z=LogLog_z,
+                      LogLog_r2=LogLog_r2,
+                      LogLogSE_trend=LogLogSE_trend,
+                      Log_c= Log_c,
+                      Log_z = Log_z,
+                      Log_r2=Log_r2,
+                      LogSE_trend=LogSE_trend,
+                      row.names = NULL))
+  },
+  STR_raw_df) -> STR_fitsdf
+
+write_csv(STR_fitsdf, '../ModelFits/STR_fitsdf.csv')
+
+```
+
+```{r message = FALSE}
+STR_fitsdf <- read_csv('../ModelFits/STR_fitsdf.csv')
+STATS_scaled  <- read_csv('../Data/STATS_select_SCALED.csv')
+STATS  <- read_csv('../Data/STATS.csv')
+```
+
+### Adding predictor data and filtering out very poor fits
+
+```{r}
+sum(STR_fitsdf$LogLog_r2<0.5)
+
+STR_fitsdf %>%
+  left_join(STATS_scaled, by = "TransectID")%>%
+  left_join(select(STATS,TransectID,N_Surveys)  ,
+            by = "TransectID"  ) %>%
+  mutate(Year_span50 = Year_span/50) %>%
+    as_tibble()-> Both_df_scaled
+
+Both_df_scaled$LogLogSE_trend %>%log10 %>% range
+## handful of near-perfect fits are 'too good'. Setting the SE to a small, but not silly small number. 
+Both_df_scaled$LogLogSE_trend[Both_df_scaled$LogLogSE_trend< 0.005] <- 0.005
+Both_df_scaled$LogLogWeight = 1/((Both_df_scaled$LogLogSE_trend)^2)
+Both_df_scaled$LogLogWeight %>% hist(main = 'Distribution of Weights')
+```
+
+# Fitting Within-BCR linear models 
+
+```{r}
+BCRs <- unique(Both_df_scaled$BCR)
+
+AllBCRs_Seperate_STR<-map_df(BCRs, function(BCR_i){
+  Both_df_scaled %>%
+    filter(BCR==BCR_i) %>%
+    lm(data = .,
+       LogLog_z ~ Year_span50 +AvRich_100  + Av_HMindex +CV_gpp_scaled  +Gamma_scaled,
+       weights = LogLogWeight ) -> LM_fit 
+  
+  Coefs<-      as.data.frame(t(as.matrix(coefficients(LM_fit)))) 
+  SEs <-           as.data.frame(t(as.matrix(  sqrt(diag(vcov(LM_fit))))))
+  colnames(Coefs)<- paste0('Coefs',colnames(SEs))
+  colnames(SEs)<- paste0('SE_',colnames(SEs))
+  
+  bind_cols(Coefs, SEs) %>%
+    mutate(BCR = BCR_i) %>%
+    return()
+})
+
+write_csv(AllBCRs_Seperate_STR, '../ModelSummaries/STR_AllBCRs_SeperateLM.csv' )
+
+```
+
+```{r}
+AllBCRs_Seperate_STR <- read_csv('../ModelSummaries/STR_AllBCRs_SeperateLM.csv' )
+
+Coefs<-  pivot_longer(AllBCRs_Seperate_STR, names_to = 'Predictor',cols =  starts_with('Coefs'),
+                values_to = 'Coefs', names_prefix = 'Coefs') %>%
+    select( BCR, Predictor, Coefs)
+
+SEs<-  pivot_longer(AllBCRs_Seperate_STR, names_to = 'Predictor',cols =  starts_with('SE_'),
+                values_to = 'SE', names_prefix = 'SE_') %>%
+    select( BCR, Predictor, SE)  
+  
+left_join(Coefs, SEs, by = c("BCR", "Predictor")) %>%
+  filter(Predictor != '(Intercept)') %>% 
+  ggplot( aes( x = factor(BCR)))+
+  geom_pointrange(aes(y = Coefs, ymin = Coefs+2*SE, ymax = Coefs-2*SE))+
+  facet_wrap(~Predictor, scales = 'free_y', nrow = 1)+
+  geom_hline(yintercept =0)+
+  ggtitle('Slope of STR predictors')
+```
+
+# Across-BCR Overall meta-analysis
+
+```{r eval = FALSE}
+STR_Overall_YS    <- brm(bf(CoefsYear_span50  |se(SE_Year_span50)  ~1),
+                         data = AllBCRs_Seperate_STR, silent = 2, refresh =0 )
+STR_Overall_HM    <- brm(bf(CoefsAv_HMindex   |se(SE_Av_HMindex )  ~1),
+                         data = AllBCRs_Seperate_STR , silent = 2, refresh =0)
+STR_Overall_CV    <- brm(bf(CoefsCV_gpp_scaled|se(SE_CV_gpp_scaled)~1),
+                         data = AllBCRs_Seperate_STR , silent = 2, refresh =0)
+STR_Overall_AL    <- brm(bf( CoefsAvRich_100  |se(SE_AvRich_100 )  ~1),
+                         data = AllBCRs_Seperate_STR , silent = 2, refresh =0)
+STR_Overall_GM    <- brm(bf(CoefsGamma_scaled |se(SE_Gamma_scaled) ~1),
+                         data = AllBCRs_Seperate_STR, silent = 2, refresh =0 )
+
+bind_rows(summarise_draws(STR_Overall_YS) %>% mutate( Predictor = 'YearSpan'),
+          summarise_draws(STR_Overall_HM) %>% mutate( Predictor = 'Humans'),
+          summarise_draws(STR_Overall_CV) %>% mutate( Predictor = 'CV'),
+          summarise_draws(STR_Overall_AL) %>% mutate( Predictor = 'Alpha'),
+          summarise_draws(STR_Overall_GM) %>% mutate( Predictor = 'Gamma')) -> STR_Overall_Results
+
+write_csv(STR_Overall_Results, '../ModelSummaries/STR_Overall_Results.csv')
+```
+
+
+```{r}
+STR_Overall_Results <- read_csv('../ModelSummaries/STR_Overall_Results.csv')
+
+STR_Overall_Results%>%
+  filter(variable         =='b_Intercept')%>%
+  ggplot( aes( x = Predictor))+
+  geom_pointrange(aes(y = mean, ymin = q5, ymax = q95))+
+  scale_colour_viridis_c()+
+    geom_hline(yintercept =0)+
+  ggtitle('Overall (Cross-BCR) Slope of STR predictors')+
+  coord_flip()
+          
+```
+
+# Session Info
+
+```{r}
+sessionInfo()
+```
+
+

@@ -1,0 +1,345 @@
+---
+title: "Linear Sim Decline Fitting"
+output: html_document
+date: '2022-10-13'
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r message = FALSE, warning = FALSE}
+library(tidyverse)
+library(brms)
+library(posterior)
+map <- purrr::map
+select <- dplyr::select
+Average_Curves <- read_csv('../Data/All_Average_Curves.csv')
+
+STATS_select_scaled <- read_csv('../Data/STATS_select_SCALED.csv')
+BCRsToFit     <- read_csv('../Data/BCRsToFit.csv')
+
+```
+
+This document fits linear models through the initial rate of similarity decline (ΔS). NB - looking at decay rates, so be careful of flipping the sign of slope. It then fits the wider meta-analysis across all the BCRs.
+
+```{r}
+
+### Just take up to 8 years of time difference and fit an LM through
+## Only BCRs with 25 
+
+Average_Curves %>%
+  filter( x<=8) %>%
+  left_join(STATS_select_scaled, by = "TransectID") %>%
+  filter(BCR %in% BCRsToFit$BCR) %>%
+  mutate(LMWeight = 1/(0.0219^2)) %>%
+  filter(!is.na(Gamma_scaled) )-> InitialDecay_all
+  
+
+TransectsToFit <- unique(InitialDecay_all$TransectID)
+
+map_df(TransectsToFit,
+       function(Transect, InitialDecay_all){
+         data = filter(InitialDecay_all, TransectID == Transect)
+         LM <- lm(data=data, y~x, weights=LMWeight)
+         Trend <- LM$coefficients[2]
+         R2 <- summary(LM)$r.squared
+         SE_trend =   sqrt(diag(vcov(LM)))[2] # calculate standard error of estimate
+         return(data.frame(Trend = -Trend,  #### NB sign flipping
+                           SE_trend=SE_trend,
+                           R2 =R2,
+                           TransectID = Transect))
+       },InitialDecay_all) -> InitialDecay_df
+     
+
+
+write_csv(InitialDecay_df, '../ModelSummaries/InitialDecay_df.csv')
+```
+
+
+
+```{r}
+InitialDecay_df<- read_csv('../ModelSummaries/InitialDecay_df.csv')
+
+InitialDecay_df %>%
+  filter( Trend >0) %>%
+  ggplot(aes(Trend))+
+  geom_histogram()
+
+InitialDecay_df %>%
+  ggplot(aes(x=Trend, y = log10(SE_trend)))+
+  geom_point()
+
+InitialDecay_all %>%
+  filter(TransectID == 'C_840_S_91_R_304') %>%
+  ggplot(aes( x = x, y = y))+
+  geom_point()
+
+
+
+```
+
+# Within-BCR Linear Models
+
+## Fitting linear models 
+
+```{r eval = FALSE}
+
+InitialDecay_df %>%
+  left_join(STATS_select_scaled , by = "TransectID") %>%
+  as_tibble() %>%
+  filter( !is.na(Gamma_Div_Ebird)) %>%
+  mutate( TrendWeight = 1/(SE_trend^2))-> InitialDecay_df_stats
+
+
+BCRs <- unique(InitialDecay_df_stats$BCR)
+
+AllBCRs_Seperate_InitSlop<-map_df(BCRs, function(BCR_i){
+  InitialDecay_df_stats %>%
+    filter(BCR==BCR_i) -> filtdata
+
+    lm(data = filtdata,
+       Trend ~ Year_span_scaled +AvRich_100  + Av_HMindex +CV_gpp_scaled  +Gamma_scaled,
+       weights = TrendWeight ) -> LM_fit 
+  
+  Coefs<-      as.data.frame(t(as.matrix(coefficients(LM_fit)))) 
+  SEs <-           as.data.frame(t(as.matrix(  sqrt(diag(vcov(LM_fit))))))
+  colnames(Coefs)<- paste0('Coefs',colnames(SEs))
+  colnames(SEs)<- paste0('SE_',colnames(SEs))
+  
+  Coefs$R2 = summary(LM_fit)$r.squared
+  Coefs$adjR2 = summary(LM_fit)$adj.r.squared
+ Coefs$n = length(LM_fit$residuals)
+
+  bind_cols(Coefs, SEs) %>%
+    mutate(BCR = BCR_i) %>%
+    return()
+})
+
+write_csv(AllBCRs_Seperate_InitSlop, '../ModelSummaries/AllBCRs_Seperate_InitSlopLM.csv' )
+```
+
+```{r}
+AllBCRs_Seperate_InitSlop <- read_csv('../ModelSummaries/AllBCRs_Seperate_InitSlopLM.csv' )
+```
+
+# Overall 'Meta-analysis'
+
+```{r eval = FALSE}
+InitSlop_Overall_YS <- brm(bf(CoefsYear_span_scaled    |se(SE_Year_span_scaled)    ~1),
+                              data = AllBCRs_Seperate_InitSlop,  silent = 2, refresh =0 )
+InitSlop_Overall_HM    <- brm(bf(CoefsAv_HMindex   |se(SE_Av_HMindex )  ~1),
+                              data = AllBCRs_Seperate_InitSlop, silent = 2, refresh =0 )
+InitSlop_Overall_CV    <- brm(bf(CoefsCV_gpp_scaled|se(SE_CV_gpp_scaled)~1),
+                              data = AllBCRs_Seperate_InitSlop , silent = 2, refresh =0)
+InitSlop_Overall_AL    <- brm(bf( CoefsAvRich_100  |se(SE_AvRich_100 )  ~1),
+                              data = AllBCRs_Seperate_InitSlop , silent = 2, refresh =0)
+InitSlop_Overall_GM    <- brm(bf(CoefsGamma_scaled |se(SE_Gamma_scaled) ~1),
+                              data = AllBCRs_Seperate_InitSlop , silent = 2, refresh =0)
+
+bind_rows(summarise_draws(InitSlop_Overall_YS) %>% mutate( Predictor = 'YearSpan'),
+          summarise_draws(InitSlop_Overall_HM) %>% mutate( Predictor = 'Humans'),
+          summarise_draws(InitSlop_Overall_CV) %>% mutate( Predictor = 'CV'),
+          summarise_draws(InitSlop_Overall_AL) %>% mutate( Predictor = 'Alpha'),
+          summarise_draws(InitSlop_Overall_GM) %>% mutate( Predictor = 'Gamma')) -> InitSlop_Overall_Results
+
+write_csv(InitSlop_Overall_Results, '../ModelSummaries/InitSlop_Overall_Results.csv')
+```
+
+## Quick Plot 
+
+```{r}
+InitSlop_Overall_Results <- read_csv('../ModelSummaries/InitSlop_Overall_Results.csv')
+
+InitSlop_Overall_Results%>%
+  filter(variable         =='b_Intercept')%>%
+  ggplot( aes( x = Predictor))+
+  geom_pointrange(aes(y = mean, ymin = q5, ymax = q95))+
+  scale_colour_viridis_c()+
+    geom_hline(yintercept =0)+
+  ggtitle('Overall (Cross-BCR) Slope of Richness predictors')+
+  coord_flip()
+          
+```
+
+
+
+```{r}
+AllBCRs_Seperate_InitSlop<-## read_csv('../ModelSummaries/Richness_AllBCRs_SeperateLM.csv' ) %>%
+  
+  AllBCRs_Seperate_InitSlop %>%
+  filter(n>=25)  ### Take out BCRs that don't have at least 25 transects
+
+Coefs<-  pivot_longer(AllBCRs_Seperate_InitSlop, names_to = 'Predictor',cols =  starts_with('Coefs'),
+                values_to = 'Coefs', names_prefix = 'Coefs') %>%
+    select( BCR, Predictor, Coefs)
+
+SEs<-  pivot_longer(AllBCRs_Seperate_InitSlop, names_to = 'Predictor',cols =  starts_with('SE_'),
+                values_to = 'SE', names_prefix = 'SE_') %>%
+    select( BCR, Predictor, SE) 
+  
+left_join(Coefs, SEs, by = c("BCR", "Predictor")) %>%
+  filter(Predictor != '(Intercept)')%>%
+  mutate(Response = 'RichTrend')  -> InitSlope_BCR_forplot
+
+InitSlope_BCR_forplot  %>%
+  ggplot( aes( x = factor(BCR)))+
+  geom_pointrange(aes(y = Coefs, ymin = Coefs+2*SE, ymax = Coefs-2*SE))+
+  facet_wrap(~Predictor, scales = 'free',nrow=1)+
+  geom_hline(yintercept =0)+
+  theme_minimal()+
+  theme(axis.title = element_blank(),
+        axis.text.x = element_text(size = 5, angle = 90))
+
+```
+
+# Comparing Sim and Sor Dissimilarity Slopes
+
+```{R}
+Average_Curves_SIM <- read_csv('../Data/All_Average_Curves_3.csv')
+```
+
+```{r}
+Average_Curves_SIM %>%
+  filter( x<=8) %>%
+  left_join(STATS_select_scaled, by = "TransectID") %>%
+  filter(BCR %in% BCRsToFit$BCR) %>%
+  mutate(LMWeight = 1/(0.0219^2)) %>%
+  filter(!is.na(Gamma_scaled) )-> InitialDecay_all_SIM
+  
+TransectsToFit <- unique(InitialDecay_all_SIM$TransectID)
+
+map_df(TransectsToFit,
+       function(Transect, InitialDecay_all_SIM){
+         data = filter(InitialDecay_all_SIM, TransectID == Transect)
+         LM <- lm(data=data, y~x, weights=LMWeight)
+         Trend <- LM$coefficients[2]
+         R2 <- summary(LM)$r.squared
+         SE_trend =   sqrt(diag(vcov(LM)))[2] # calculate standard error of estimate
+         return(data.frame(Trend = -Trend,  #### NB sign flipping
+                           SE_trend=SE_trend,
+                           R2 =R2,
+                           TransectID = Transect))
+       },InitialDecay_all_SIM) -> InitialDecay_df_SIM
+     
+write_csv(InitialDecay_df_SIM, '../ModelSummaries/InitialDecay_df_SIM.csv')
+```
+
+```{r}
+InitialDecay_df_SIM <- read_csv('../ModelSummaries/InitialDecay_df_SIM.csv')
+
+InitialDecay_df_SIM %>%
+  filter( Trend >0) %>%
+  ggplot(aes(Trend))+
+  geom_histogram()
+
+InitialDecay_df_SIM %>%
+  select( SIM_Trend = Trend, TransectID) %>%
+  left_join(InitialDecay_df) %>%
+  ggplot( aes(  SIM_Trend, Trend))+
+  geom_point(alpha = 0.1)
+
+```
+
+## Re-Running Analysis with SIM
+
+```{R eval = FALSE}
+InitialDecay_df_SIM %>%
+  left_join(STATS_select_scaled , by = "TransectID") %>%
+  as_tibble() %>%
+  filter( !is.na(Gamma_Div_Ebird)) %>%
+  mutate( TrendWeight = 1/(SE_trend^2))-> InitialDecay_df_stats_SIM
+
+
+BCRs <- unique(InitialDecay_df_stats_SIM$BCR)
+
+AllBCRs_Seperate_InitSlop_SIM<-map_df(BCRs, function(BCR_i){
+  InitialDecay_df_stats_SIM %>%
+    filter(BCR==BCR_i) -> filtdata
+
+    lm(data = filtdata,
+       Trend ~ Year_span_scaled +AvRich_100  + Av_HMindex +CV_gpp_scaled  +Gamma_scaled,
+       weights = TrendWeight ) -> LM_fit 
+  
+  Coefs<-      as.data.frame(t(as.matrix(coefficients(LM_fit)))) 
+  SEs <-           as.data.frame(t(as.matrix(  sqrt(diag(vcov(LM_fit))))))
+  colnames(Coefs)<- paste0('Coefs',colnames(SEs))
+  colnames(SEs)<- paste0('SE_',colnames(SEs))
+  
+  Coefs$R2 = summary(LM_fit)$r.squared
+  Coefs$adjR2 = summary(LM_fit)$adj.r.squared
+ Coefs$n = length(LM_fit$residuals)
+
+  bind_cols(Coefs, SEs) %>%
+    mutate(BCR = BCR_i) %>%
+    return()
+})
+
+write_csv(AllBCRs_Seperate_InitSlop_SIM, '../ModelSummaries/AllBCRs_Seperate_InitSlopLM_SIM.csv' )
+```
+
+```{r}
+AllBCRs_Seperate_InitSlop_SIM <- read_csv('../ModelSummaries/AllBCRs_Seperate_InitSlopLM_SIM.csv' )
+```
+
+# Overall 'Meta-analysis' with SIM
+
+```{r eval = FALSE}
+InitSlop_Overall_YS_SIM <- brm(bf(CoefsYear_span_scaled    |se(SE_Year_span_scaled)    ~1),
+                              data = AllBCRs_Seperate_InitSlop_SIM,  silent = 2, refresh =0 )
+InitSlop_Overall_HM_SIM    <- brm(bf(CoefsAv_HMindex   |se(SE_Av_HMindex )  ~1),
+                              data = AllBCRs_Seperate_InitSlop_SIM, silent = 2, refresh =0 )
+InitSlop_Overall_CV_SIM    <- brm(bf(CoefsCV_gpp_scaled|se(SE_CV_gpp_scaled)~1),
+                              data = AllBCRs_Seperate_InitSlop_SIM , silent = 2, refresh =0)
+InitSlop_Overall_AL_SIM    <- brm(bf( CoefsAvRich_100  |se(SE_AvRich_100 )  ~1),
+                              data = AllBCRs_Seperate_InitSlop_SIM , silent = 2, refresh =0)
+InitSlop_Overall_GM_SIM    <- brm(bf(CoefsGamma_scaled |se(SE_Gamma_scaled) ~1),
+                              data = AllBCRs_Seperate_InitSlop_SIM , silent = 2, refresh =0)
+
+bind_rows(summarise_draws(InitSlop_Overall_YS_SIM) %>% mutate( Predictor = 'YearSpan'),
+          summarise_draws(InitSlop_Overall_HM_SIM) %>% mutate( Predictor = 'Humans'),
+          summarise_draws(InitSlop_Overall_CV_SIM) %>% mutate( Predictor = 'CV'),
+          summarise_draws(InitSlop_Overall_AL_SIM) %>% mutate( Predictor = 'Alpha'),
+          summarise_draws(InitSlop_Overall_GM_SIM) %>% mutate( Predictor = 'Gamma')) -> InitSlop_Overall_Results_SIM
+
+write_csv(InitSlop_Overall_Results_SIM, '../ModelSummaries/InitSlop_Overall_Results_SIM.csv')
+
+```
+
+## Comparison
+
+```{r}
+InitSlop_Overall_Results_SIM <- read_csv('../ModelSummaries/InitSlop_Overall_Results_SIM.csv')
+InitSlop_Overall_Results <- read_csv('../ModelSummaries/InitSlop_Overall_Results.csv')
+
+dodge <- position_dodge(width=0.5)  
+
+bind_rows(InitSlop_Overall_Results%>%
+            filter(variable         =='b_Intercept')%>%
+            select( Predictor, mean, q5, q95) %>%
+            mutate( Measure = 'SOR') , 
+          InitSlop_Overall_Results_SIM%>%
+            filter(variable         =='b_Intercept')%>%
+            select( Predictor, mean, q5, q95) %>%
+            mutate( Measure = 'SIM') ) %>%
+  ggplot( aes( x = Predictor, col = Measure),position=dodge)+
+  geom_pointrange(aes(y = mean, ymin = q5, ymax = q95),position=dodge)+
+  geom_hline(yintercept =0)+
+  ggtitle('Overall (Cross-BCR) Short-term Turnover (ΔS) predictors')+
+  theme_minimal()
+
+
+## NB combined with others in Final Analysis doc
+```
+
+
+
+```{r}
+sessionInfo()
+```
+
+
+
+
+
+
+
+

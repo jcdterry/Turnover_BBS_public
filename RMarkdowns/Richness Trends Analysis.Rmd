@@ -1,0 +1,198 @@
+---
+title: "Richness Trend Analyses"
+output: 
+  html_document: 
+    toc: yes
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+This document calculates the species richness trends for each transect, then examines for trends within and across the BCRs. 
+
+```{r message = FALSE, warning = FALSE}
+library(tidyverse)
+library(brms)
+library(posterior)
+map <- purrr::map
+select <- dplyr::select
+```
+
+## Transect Stats Data Input
+
+```{R}
+load(file = '../Data/2020Release_Nor/matrix_form_filt1')  ### list of matrices
+STATS_scaled <- read_csv('../Data/STATS_select_SCALED.csv')
+```
+
+# Calculating Richness Through Time For Each Transect
+
+```{r eval = FALSE}
+matrix_form%>%
+  map(   function(matrix_input){
+    
+    ### doing the filtering of very erratic years in here 
+    
+    if(nrow(matrix_input) ==1){return(data.frame(Trend = NA, R2 =NA))}
+    
+    Richnesses <- rowSums(matrix_input[,-1])
+    LowerBound =  mean(Richnesses) -2 *sd(Richnesses)
+    UpperBound =  mean(Richnesses) +2 *sd(Richnesses)
+    YearsToKeep <- Richnesses>LowerBound & Richnesses<UpperBound
+    matrix_input2<- matrix_input[YearsToKeep, ]
+    df<-   data.frame(Year = matrix_input2[,1],
+                      Richness = rowSums(matrix_input2[,-1]))
+
+            if(nrow(df) <2){return(data.frame(Trend = NA, R2 =NA))}
+
+    LM <- lm(data=df, Richness~Year)  
+    
+    Trend <- LM$coefficients[2]
+    R2 <- summary(LM)$r.squared
+    SE_trend =   sqrt(diag(vcov(LM)))[2] # calculate standard error of estimate
+    
+    return(data.frame(Trend = Trend,SE_trend=SE_trend,
+                      R2 =R2, N_Years = nrow(df)))
+  }) %>%
+  map_dfr(.f = ~.,.id = 'TransectID')-> RichnessSlope_df
+
+write_csv(RichnessSlope_df, '../ModelSummaries/RichnessSlope_df.csv')
+```
+
+# Overal Distribution of Richness Slopes
+
+```{r}
+RichnessSlope_df <- read_csv('../ModelSummaries/RichnessSlope_df.csv')
+
+RichnessSlope_df %>%
+  left_join(STATS_scaled, by = "TransectID") %>%
+  filter(!is.na(Av_HMindex))%>%
+  mutate(Year_span50 = Year_span/50)-> RichnessSlope_df_STATS
+```
+
+```{r}
+RichnessSlope_df_STATS %>%
+  ggplot(aes( Trend))+
+  geom_histogram(binwidth = 0.02, )+
+  geom_vline(xintercept = 0)+
+  geom_vline(xintercept = mean(RichnessSlope_df_STATS$Trend), col = 2)+
+  xlab('Species richness trend (species per year)')
+
+RichnessSlope_df_STATS%>%
+  ggplot(aes(y=Trend, x= Average_Richness))+
+  geom_point()
+
+RichnessSlope_df_STATS$Average_Richness %>% mean
+
+mean(RichnessSlope_df_STATS$Trend / RichnessSlope_df_STATS$Average_Richness)*100*50
+```
+
+### Calculating Weights
+
+Weighting each trend line by inverse of variance ($1/\sigma^2$)
+```{r}
+RichnessSlope_df_STATS$TrendWeight = 1/((RichnessSlope_df_STATS$SE_trend)^2) # 
+RichnessSlope_df_STATS$TrendWeight %>% log10     %>%
+  hist(main = 'Distribution of Weights')
+```
+
+### Mean Overall Trend in Species Richness
+```{r}
+RichnessSlope_df_STATS %>%
+  group_by(BCR) %>%
+  add_count(name = 'BCR_n') %>%
+  filter(BCR_n >=25) %>% 
+  lm(data = ., Trend ~ 1,weights = TrendWeight ) %>%
+  summary()
+```
+
+
+# Within-BCR Linear Models
+
+## Fitting linear models 
+
+```{r eval = FALSE}
+BCRs <- unique(RichnessSlope_df_STATS$BCR)
+
+AllBCRs_Seperate_Richness<-map_df(BCRs, function(BCR_i){
+  RichnessSlope_df_STATS %>%
+    filter(BCR==BCR_i) -> filtdata
+
+    lm(data = filtdata,
+       Trend ~ Year_span50 +AvRich_100  + Av_HMindex +CV_gpp_scaled  +Gamma_scaled,
+       weights = TrendWeight ) -> LM_fit 
+  
+  Coefs<-      as.data.frame(t(as.matrix(coefficients(LM_fit)))) 
+  SEs <-           as.data.frame(t(as.matrix(  sqrt(diag(vcov(LM_fit))))))
+  colnames(Coefs)<- paste0('Coefs',colnames(SEs))
+  colnames(SEs)<- paste0('SE_',colnames(SEs))
+  
+  Coefs$R2 = summary(LM_fit)$r.squared
+  Coefs$adjR2 = summary(LM_fit)$adj.r.squared
+ Coefs$n = length(LM_fit$residuals)
+
+  bind_cols(Coefs, SEs) %>%
+    mutate(BCR = BCR_i) %>%
+    return()
+})
+
+write_csv(AllBCRs_Seperate_Richness, '../ModelSummaries/Richness_AllBCRs_SeperateLM.csv' )
+```
+
+
+
+```{r}
+AllBCRs_Seperate_Richness_uncut <- read_csv('../ModelSummaries/Richness_AllBCRs_SeperateLM.csv' )
+
+### Take out BCRs that don't have at least 25 transects
+AllBCRs_Seperate_Richness<- filter(AllBCRs_Seperate_Richness_uncut, n>=25)
+```
+
+# Overall 'Meta-analysis'
+
+```{r eval = FALSE}
+Richness_Overall_YS <- brm(bf(CoefsYear_span50    |se(SE_Year_span50)    ~1),
+                              data = AllBCRs_Seperate_Richness,  silent = 2, refresh =0 )
+Richness_Overall_HM    <- brm(bf(CoefsAv_HMindex   |se(SE_Av_HMindex )  ~1),
+                              data = AllBCRs_Seperate_Richness, silent = 2, refresh =0 )
+Richness_Overall_CV    <- brm(bf(CoefsCV_gpp_scaled|se(SE_CV_gpp_scaled)~1),
+                              data = AllBCRs_Seperate_Richness )
+Richness_Overall_AL    <- brm(bf( CoefsAvRich_100  |se(SE_AvRich_100 )  ~1),
+                              data = AllBCRs_Seperate_Richness , silent = 2, refresh =0)
+Richness_Overall_GM    <- brm(bf(CoefsGamma_scaled |se(SE_Gamma_scaled) ~1),
+                              data = AllBCRs_Seperate_Richness , silent = 2, refresh =0)
+
+bind_rows(summarise_draws(Richness_Overall_YS) %>% mutate( Predictor = 'YearSpan'),
+          summarise_draws(Richness_Overall_HM)    %>% mutate( Predictor = 'Humans'),
+          summarise_draws(Richness_Overall_CV)    %>% mutate( Predictor = 'CV'),
+          summarise_draws(Richness_Overall_AL)    %>% mutate( Predictor = 'Alpha'),
+          summarise_draws(Richness_Overall_GM)    %>% mutate( Predictor = 'Gamma')) -> Richness_Overall_Results
+
+write_csv(Richness_Overall_Results, '../ModelSummaries/Richness_Overall_Results.csv')
+```
+
+## Quick Plot 
+
+```{r}
+Richness_Overall_Results <- read_csv('../ModelSummaries/Richness_Overall_Results.csv')
+
+Richness_Overall_Results%>%
+  filter(variable         =='b_Intercept')%>%
+  ggplot( aes( x = Predictor))+
+  geom_pointrange(aes(y = mean, ymin = q5, ymax = q95))+
+  scale_colour_viridis_c()+
+    geom_hline(yintercept =0)+
+  ggtitle('Overall (Cross-BCR) Slope of Richness predictors')+
+  coord_flip()
+          
+```
+
+
+# Session Info
+
+```{r}
+sessionInfo()
+```

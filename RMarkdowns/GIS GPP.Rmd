@@ -1,0 +1,372 @@
+---
+title: "Cross referencing Transects and GPP"
+output: 
+  html_document: 
+    toc: yes
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Environmental variability is based on gross primary productivity from the high-resolution MODIS satellite series MOD17A2H V6. 
+
+See here: https://developers.google.com/earth-engine/datasets/catalog/MODIS_006_MOD17A2H for further details 
+
+This data has already been cleaned and interpolated to deal with cloud issues. 
+
+Documentation: https://lpdaac.usgs.gov/documents/495/MOD17_User_Guide_V6.pdf  (in Github for reference)
+Citation: https://lpdaac.usgs.gov/data/data-citation-and-policies/  
+
+GIS manipulation is done using the Google Earth Engine
+
+# Preparing Data for Google Earth Engine
+
+
+`saveshp` is an esri shape file exported of the joined routes (original shape file has multiple rows for when route loops back on itsel. Code is copied here for reference 
+```{r eval = FALSE}
+library(sf)
+library(tidyverse)
+library(lwgeom)
+library(raster)
+
+map <- purrr::map
+select <- dplyr::select
+
+L48Routes<-read_sf('../Data/Lower48_routes/bbsrtsl020.shp')  # https://earthworks.stanford.edu/catalog/stanford-vy474dv5024
+
+AllRoutes<- read_csv('../Data/2020Release_Nor/routes.csv')%>%
+  mutate(RTENO = parse_number(paste0(StateNum ,Route)))
+
+arrange(L48Routes , RTENO )%>%
+  group_by( RTENO, RTENAME  ) %>%
+  summarize(  geom_all = st_union(geometry)) -> ORDER_L48Routes_grouped
+
+### prepping data for GEE
+ORDER_L48Routes_grouped %>%
+  left_join(AllRoutes, by = "RTENO") %>%
+  select(RTENO, Long = Longitude, BCR, Lat=Latitude)-> toSave
+
+st_write(toSave, dsn = "../Data/saveshp/save.shp", layer = "nc.shp", driver = "ESRI Shapefile")
+
+```
+
+# Google Earth Engine (JS) code
+
+Core code is rather repetitive as need to divide task into small enough pieces to not exceed google's memory limits. 
+
+Note to self: hosted in google earth repository: ee-jcdterry-ndvi
+
+```{js eval = FALSE}
+// Load US states
+var USMAP = ee.FeatureCollection('TIGER/2016/States');
+
+// print(USMAP);
+
+var US_Modis = ee.ImageCollection("MODIS/006/MOD17A2H");
+var gpp = US_Modis.select('Gpp');
+
+// var GPP2001 = gpp.filterDate('2001-01-01', '2001-12-31');
+// var meanGPP2001 = GPP2001.mean();
+
+// Overall Mean 
+var MeanOverall = gpp.mean();
+
+// Map.addLayer(GPP2001,{bands: ['Gpp'],  min: 0.0,  max: 600.0,palette: ['bbe029']},'gppmodis_2001_unfilt');
+// Map.addLayer(meanGPP2001,{bands: ['Gpp'],  min: 0.0,  max: 600.0,},'gppmodis_2001_mean');
+// Map.addLayer(MeanOverall,{bands: ['Gpp'],  min: 0.0,  max: 600.0,},'gppmodis_overall_mean');
+
+var years = ee.List.sequence(2001, 2021);
+
+
+var byYear = ee.ImageCollection.fromImages(
+  years.map(function(y) {
+      return gpp
+        .filter(ee.Filter.calendarRange(y, y, 'year'))
+        .mean()
+        .set('year', y);
+  }).flatten());
+
+
+// Map.addLayer(byYear,{bands: ['Gpp'],  min: 0.0,  max: 600.0,},'gppmodis_yearlu_mean');
+
+// year to year Variation
+
+var SDbyYear = byYear.reduce(ee.Reducer.sampleStdDev());
+//Map.addLayer(SDbyYear,{},'gppmodis_sd');
+
+var CV_image = SDbyYear.divide(MeanOverall);  // CV = SD divided by mean
+
+Map.addLayer(CV_image,{},'gppmodis_CV');
+
+
+var nonConusCodes = ['PR', 'VI', 'HI', 'MP', 'GU', 'AS', 'AK' ];
+var USMAP_woAlasHaw =  USMAP.filter(ee.Filter.inList('STUSPS',nonConusCodes).not());
+
+var CV_image_US = CV_image.clipToCollection(USMAP_woAlasHaw);
+
+var projection = CV_image_US.projection();
+print(projection.getInfo());
+
+// Map.addLayer(CV_image_US,{},'CV_image_US');
+
+var US_HULL = USMAP_woAlasHaw.geometry().convexHull();  // Filter the table geographically: only watersheds in the continental US. (no actual need)
+// print(US_HULL);
+
+//Map.addLayer(US_HULL,{},'US_HULL');
+//Map.addLayer(CV_image_US,{},'CV_US_box');
+
+//////////////////////////
+/// Loading routes
+
+
+var table = ee.FeatureCollection("projects/ee-jcdterry-ndvi/assets/saveshp");
+// Map.addLayer(table,{},'routes');
+
+print(table.limit(10));
+
+var buffered_routes = table.map(function(route){
+  return route.buffer(1000);  // 1000 m buffer around each route 
+});
+
+// Map.addLayer(buffered_routes,{},'buffered_routes');
+
+// some fail when done whole, needed splitting long mid point, and some of them need splittting again... 
+var buffered_routes_filt00 = buffered_routes.filter(ee.Filter.rangeContains('Long', -130, -123)); 
+var buffered_routes_filt01upper = buffered_routes.filter(ee.Filter.rangeContains('Long', -123, -120)).filter(ee.Filter.rangeContains('Lat', 42, 80));
+var buffered_routes_filt02upper = buffered_routes.filter(ee.Filter.rangeContains('Long', -120, -118)).filter(ee.Filter.rangeContains('Lat', 42, 80));
+var buffered_routes_filt03upper = buffered_routes.filter(ee.Filter.rangeContains('Long', -118, -115)).filter(ee.Filter.rangeContains('Lat', 42, 80));
+var buffered_routes_filt04upper = buffered_routes.filter(ee.Filter.rangeContains('Long', -115, -112)).filter(ee.Filter.rangeContains('Lat', 42, 80));
+var buffered_routes_filt05upper = buffered_routes.filter(ee.Filter.rangeContains('Long', -112, -108)).filter(ee.Filter.rangeContains('Lat', 42, 80));
+var buffered_routes_filt06upper = buffered_routes.filter(ee.Filter.rangeContains('Long', -108, -105)).filter(ee.Filter.rangeContains('Lat', 42, 80));
+var buffered_routes_filt07upper = buffered_routes.filter(ee.Filter.rangeContains('Long', -105, -102)).filter(ee.Filter.rangeContains('Lat', 42, 80));
+var buffered_routes_filt10upper = buffered_routes.filter(ee.Filter.rangeContains('Long', -98,   -96)).filter(ee.Filter.rangeContains('Lat', 42, 80));  
+var buffered_routes_filt01lower = buffered_routes.filter(ee.Filter.rangeContains('Long', -123, -120)).filter(ee.Filter.rangeContains('Lat', 10, 42));
+var buffered_routes_filt02lower = buffered_routes.filter(ee.Filter.rangeContains('Long', -120, -118)).filter(ee.Filter.rangeContains('Lat', 10, 42));
+var buffered_routes_filt03lower = buffered_routes.filter(ee.Filter.rangeContains('Long', -118, -115)).filter(ee.Filter.rangeContains('Lat', 10, 42));
+var buffered_routes_filt04lower1 = buffered_routes.filter(ee.Filter.rangeContains('Long', -115, -112)).filter(ee.Filter.rangeContains('Lat', 10, 37));
+var buffered_routes_filt05lower1 = buffered_routes.filter(ee.Filter.rangeContains('Long', -112, -108)).filter(ee.Filter.rangeContains('Lat', 10, 37));
+var buffered_routes_filt04lower2 = buffered_routes.filter(ee.Filter.rangeContains('Long', -115, -112)).filter(ee.Filter.rangeContains('Lat', 37, 42));
+var buffered_routes_filt05lower2 = buffered_routes.filter(ee.Filter.rangeContains('Long', -112, -108)).filter(ee.Filter.rangeContains('Lat', 37, 42));
+var buffered_routes_filt06lower = buffered_routes.filter(ee.Filter.rangeContains('Long', -108, -105)).filter(ee.Filter.rangeContains('Lat', 10, 42));  // had to split for rerun of CV, but not for mean, no idea why...
+var buffered_routes_filt06lower1 = buffered_routes.filter(ee.Filter.rangeContains('Long', -108, -105)).filter(ee.Filter.rangeContains('Lat', 10, 37));
+var buffered_routes_filt06lower2 = buffered_routes.filter(ee.Filter.rangeContains('Long', -108, -105)).filter(ee.Filter.rangeContains('Lat', 37, 42));
+var buffered_routes_filt07lower = buffered_routes.filter(ee.Filter.rangeContains('Long', -105, -102)).filter(ee.Filter.rangeContains('Lat', 10, 42));
+var buffered_routes_filt10lower = buffered_routes.filter(ee.Filter.rangeContains('Long', -98,   -96)).filter(ee.Filter.rangeContains('Lat', 10, 42));  
+var buffered_routes_filt08 = buffered_routes.filter(ee.Filter.rangeContains('Long', -102, -100)); 
+var buffered_routes_filt09 = buffered_routes.filter(ee.Filter.rangeContains('Long', -100, -98));  
+var buffered_routes_filt11 = buffered_routes.filter(ee.Filter.rangeContains('Long', -96, -94));  
+var buffered_routes_filt12 = buffered_routes.filter(ee.Filter.rangeContains('Long', -94, -92));
+var buffered_routes_filt13 = buffered_routes.filter(ee.Filter.rangeContains('Long', -92, -90));
+var buffered_routes_filt14 = buffered_routes.filter(ee.Filter.rangeContains('Long', -90, -88));
+var buffered_routes_filt15 = buffered_routes.filter(ee.Filter.rangeContains('Long', -88, -86));
+var buffered_routes_filt16 = buffered_routes.filter(ee.Filter.rangeContains('Long', -86, -84));
+var buffered_routes_filt17 = buffered_routes.filter(ee.Filter.rangeContains('Long', -84, -82));
+var buffered_routes_filt18 = buffered_routes.filter(ee.Filter.rangeContains('Long', -82, -80));
+var buffered_routes_filt19 = buffered_routes.filter(ee.Filter.rangeContains('Long', -80, -78));
+var buffered_routes_filt20 = buffered_routes.filter(ee.Filter.rangeContains('Long', -78, -76));
+var buffered_routes_filt21 = buffered_routes.filter(ee.Filter.rangeContains('Long', -76, -74));
+var buffered_routes_filt22 = buffered_routes.filter(ee.Filter.rangeContains('Long', -74, -72));
+var buffered_routes_filt23 = buffered_routes.filter(ee.Filter.rangeContains('Long', -72, -50));
+
+
+
+/////////////////////////////////////
+// Intersecting CV image with routes
+
+var CVbufferaverages00      = CV_image_US.reduceRegions({collection: buffered_routes_filt00      ,reducer: ee.Reducer.mean(), scale: 1000});
+var CVbufferaverages01upper = CV_image_US.reduceRegions({collection: buffered_routes_filt01upper ,reducer: ee.Reducer.mean(), scale: 1000});
+var CVbufferaverages02upper = CV_image_US.reduceRegions({collection: buffered_routes_filt02upper ,reducer: ee.Reducer.mean(), scale: 1000});
+var CVbufferaverages03upper = CV_image_US.reduceRegions({collection: buffered_routes_filt03upper ,reducer: ee.Reducer.mean(), scale: 1000});
+var CVbufferaverages04upper = CV_image_US.reduceRegions({collection: buffered_routes_filt04upper ,reducer: ee.Reducer.mean(), scale: 1000});
+var CVbufferaverages05upper = CV_image_US.reduceRegions({collection: buffered_routes_filt05upper ,reducer: ee.Reducer.mean(), scale: 1000});
+var CVbufferaverages06upper = CV_image_US.reduceRegions({collection: buffered_routes_filt06upper ,reducer: ee.Reducer.mean(), scale: 1000});
+var CVbufferaverages07upper = CV_image_US.reduceRegions({collection: buffered_routes_filt07upper ,reducer: ee.Reducer.mean(), scale: 1000});
+var CVbufferaverages10upper = CV_image_US.reduceRegions({collection: buffered_routes_filt10upper ,reducer: ee.Reducer.mean(), scale: 1000});
+var CVbufferaverages01lower = CV_image_US.reduceRegions({collection: buffered_routes_filt01lower ,reducer: ee.Reducer.mean(), scale: 1000});
+var CVbufferaverages02lower = CV_image_US.reduceRegions({collection: buffered_routes_filt02lower ,reducer: ee.Reducer.mean(), scale: 1000});
+var CVbufferaverages03lower = CV_image_US.reduceRegions({collection: buffered_routes_filt03lower ,reducer: ee.Reducer.mean(), scale: 1000});
+var CVbufferaverages04lower1= CV_image_US.reduceRegions({collection: buffered_routes_filt04lower1,reducer: ee.Reducer.mean(), scale: 1000});
+var CVbufferaverages04lower2= CV_image_US.reduceRegions({collection: buffered_routes_filt04lower2,reducer: ee.Reducer.mean(), scale: 1000});
+var CVbufferaverages05lower1= CV_image_US.reduceRegions({collection: buffered_routes_filt05lower1,reducer: ee.Reducer.mean(), scale: 1000});
+var CVbufferaverages05lower2= CV_image_US.reduceRegions({collection: buffered_routes_filt05lower2,reducer: ee.Reducer.mean(), scale: 1000});
+var CVbufferaverages06lower1= CV_image_US.reduceRegions({collection: buffered_routes_filt06lower1,reducer: ee.Reducer.mean(), scale: 1000});
+var CVbufferaverages06lower2= CV_image_US.reduceRegions({collection: buffered_routes_filt06lower2,reducer: ee.Reducer.mean(), scale: 1000});
+var CVbufferaverages07lower = CV_image_US.reduceRegions({collection: buffered_routes_filt07lower ,reducer: ee.Reducer.mean(), scale: 1000});
+var CVbufferaverages10lower = CV_image_US.reduceRegions({collection: buffered_routes_filt10lower ,reducer: ee.Reducer.mean(), scale: 1000});
+var CVbufferaverages08      = CV_image_US.reduceRegions({collection: buffered_routes_filt08      ,reducer: ee.Reducer.mean(), scale: 1000});
+var CVbufferaverages09      = CV_image_US.reduceRegions({collection: buffered_routes_filt09      ,reducer: ee.Reducer.mean(), scale: 1000});
+var CVbufferaverages11      = CV_image_US.reduceRegions({collection: buffered_routes_filt11      ,reducer: ee.Reducer.mean(), scale: 1000});
+var CVbufferaverages12      = CV_image_US.reduceRegions({collection: buffered_routes_filt12      ,reducer: ee.Reducer.mean(), scale: 1000});
+var CVbufferaverages13      = CV_image_US.reduceRegions({collection: buffered_routes_filt13      ,reducer: ee.Reducer.mean(), scale: 1000});
+var CVbufferaverages14      = CV_image_US.reduceRegions({collection: buffered_routes_filt14      ,reducer: ee.Reducer.mean(), scale: 1000});
+var CVbufferaverages15      = CV_image_US.reduceRegions({collection: buffered_routes_filt15      ,reducer: ee.Reducer.mean(), scale: 1000});
+var CVbufferaverages16      = CV_image_US.reduceRegions({collection: buffered_routes_filt16      ,reducer: ee.Reducer.mean(), scale: 1000});
+var CVbufferaverages17      = CV_image_US.reduceRegions({collection: buffered_routes_filt17      ,reducer: ee.Reducer.mean(), scale: 1000});
+var CVbufferaverages18      = CV_image_US.reduceRegions({collection: buffered_routes_filt18      ,reducer: ee.Reducer.mean(), scale: 1000});
+var CVbufferaverages19      = CV_image_US.reduceRegions({collection: buffered_routes_filt19      ,reducer: ee.Reducer.mean(), scale: 1000});
+var CVbufferaverages20      = CV_image_US.reduceRegions({collection: buffered_routes_filt20      ,reducer: ee.Reducer.mean(), scale: 1000});
+var CVbufferaverages21      = CV_image_US.reduceRegions({collection: buffered_routes_filt21      ,reducer: ee.Reducer.mean(), scale: 1000});
+var CVbufferaverages22      = CV_image_US.reduceRegions({collection: buffered_routes_filt22      ,reducer: ee.Reducer.mean(), scale: 1000});
+var CVbufferaverages23      = CV_image_US.reduceRegions({collection: buffered_routes_filt23      ,reducer: ee.Reducer.mean(), scale: 1000});
+
+// Exporting
+Export.table.toDrive({collection: CVbufferaverages00,description: 'CVbufferaverages00',fileFormat: 'CSV'});   
+Export.table.toDrive({collection: CVbufferaverages01upper,description: 'CVbufferaverages01upper',fileFormat: 'CSV'});   
+Export.table.toDrive({collection: CVbufferaverages02upper,description: 'CVbufferaverages02upper',fileFormat: 'CSV'});   
+Export.table.toDrive({collection: CVbufferaverages03upper,description: 'CVbufferaverages03upper',fileFormat: 'CSV'});   
+Export.table.toDrive({collection: CVbufferaverages04upper,description: 'CVbufferaverages04upper',fileFormat: 'CSV'});   
+Export.table.toDrive({collection: CVbufferaverages05upper,description: 'CVbufferaverages05upper',fileFormat: 'CSV'});   
+Export.table.toDrive({collection: CVbufferaverages06upper,description: 'CVbufferaverages06upper',fileFormat: 'CSV'});   
+Export.table.toDrive({collection: CVbufferaverages07upper,description: 'CVbufferaverages07upper',fileFormat: 'CSV'});   
+Export.table.toDrive({collection: CVbufferaverages10upper,description: 'CVbufferaverages10upper',fileFormat: 'CSV'});   
+Export.table.toDrive({collection: CVbufferaverages01lower,description: 'CVbufferaverages01lower',fileFormat: 'CSV'});   
+Export.table.toDrive({collection: CVbufferaverages02lower,description: 'CVbufferaverages02lower',fileFormat: 'CSV'});   
+Export.table.toDrive({collection: CVbufferaverages03lower,description: 'CVbufferaverages03lower',fileFormat: 'CSV'});   
+Export.table.toDrive({collection: CVbufferaverages04lower1,description: 'CVbufferaverages04lower1',fileFormat: 'CSV'});   
+Export.table.toDrive({collection: CVbufferaverages04lower2,description: 'CVbufferaverages04lower2',fileFormat: 'CSV'});   
+Export.table.toDrive({collection: CVbufferaverages05lower1,description: 'CVbufferaverages05lower1',fileFormat: 'CSV'});   
+Export.table.toDrive({collection: CVbufferaverages05lower2,description: 'CVbufferaverages05lower2',fileFormat: 'CSV'});   
+Export.table.toDrive({collection: CVbufferaverages06lower1,description: 'CVbufferaverages06lower1',fileFormat: 'CSV'});   
+Export.table.toDrive({collection: CVbufferaverages06lower2,description: 'CVbufferaverages06lower2',fileFormat: 'CSV'});   
+Export.table.toDrive({collection: CVbufferaverages07lower,description: 'CVbufferaverages07lower',fileFormat: 'CSV'});   
+Export.table.toDrive({collection: CVbufferaverages10lower,description: 'CVbufferaverages10lower',fileFormat: 'CSV'});   
+Export.table.toDrive({collection: CVbufferaverages08,description: 'CVbufferaverages08',fileFormat: 'CSV'});   
+Export.table.toDrive({collection: CVbufferaverages09,description: 'CVbufferaverages09',fileFormat: 'CSV'});   
+Export.table.toDrive({collection: CVbufferaverages11,description: 'CVbufferaverages11',fileFormat: 'CSV'});   
+Export.table.toDrive({collection: CVbufferaverages12,description: 'CVbufferaverages12',fileFormat: 'CSV'});   
+Export.table.toDrive({collection: CVbufferaverages13,description: 'CVbufferaverages13',fileFormat: 'CSV'});   
+Export.table.toDrive({collection: CVbufferaverages14,description: 'CVbufferaverages14',fileFormat: 'CSV'});   
+Export.table.toDrive({collection: CVbufferaverages15,description: 'CVbufferaverages15',fileFormat: 'CSV'});   
+Export.table.toDrive({collection: CVbufferaverages16,description: 'CVbufferaverages16',fileFormat: 'CSV'});   
+Export.table.toDrive({collection: CVbufferaverages17,description: 'CVbufferaverages17',fileFormat: 'CSV'});   
+Export.table.toDrive({collection: CVbufferaverages18,description: 'CVbufferaverages18',fileFormat: 'CSV'});   
+Export.table.toDrive({collection: CVbufferaverages19,description: 'CVbufferaverages19',fileFormat: 'CSV'});   
+Export.table.toDrive({collection: CVbufferaverages20,description: 'CVbufferaverages20',fileFormat: 'CSV'});   
+Export.table.toDrive({collection: CVbufferaverages21,description: 'CVbufferaverages21',fileFormat: 'CSV'});   
+Export.table.toDrive({collection: CVbufferaverages22,description: 'CVbufferaverages22',fileFormat: 'CSV'});   
+Export.table.toDrive({collection: CVbufferaverages23,description: 'CVbufferaverages23',fileFormat: 'CSV'});   
+
+/////////////////////////////////////
+// Intersecting Mean PP image with routes
+
+var MEANbufferaverages00      = MeanOverall.reduceRegions({collection: buffered_routes_filt00      ,reducer: ee.Reducer.mean(), scale: 1000});
+var MEANbufferaverages01upper = MeanOverall.reduceRegions({collection: buffered_routes_filt01upper ,reducer: ee.Reducer.mean(), scale: 1000});
+var MEANbufferaverages02upper = MeanOverall.reduceRegions({collection: buffered_routes_filt02upper ,reducer: ee.Reducer.mean(), scale: 1000});
+var MEANbufferaverages03upper = MeanOverall.reduceRegions({collection: buffered_routes_filt03upper ,reducer: ee.Reducer.mean(), scale: 1000});
+var MEANbufferaverages04upper = MeanOverall.reduceRegions({collection: buffered_routes_filt04upper ,reducer: ee.Reducer.mean(), scale: 1000});
+var MEANbufferaverages05upper = MeanOverall.reduceRegions({collection: buffered_routes_filt05upper ,reducer: ee.Reducer.mean(), scale: 1000});
+var MEANbufferaverages06upper = MeanOverall.reduceRegions({collection: buffered_routes_filt06upper ,reducer: ee.Reducer.mean(), scale: 1000});
+var MEANbufferaverages07upper = MeanOverall.reduceRegions({collection: buffered_routes_filt07upper ,reducer: ee.Reducer.mean(), scale: 1000});
+var MEANbufferaverages10upper = MeanOverall.reduceRegions({collection: buffered_routes_filt10upper ,reducer: ee.Reducer.mean(), scale: 1000});
+var MEANbufferaverages01lower = MeanOverall.reduceRegions({collection: buffered_routes_filt01lower ,reducer: ee.Reducer.mean(), scale: 1000});
+var MEANbufferaverages02lower = MeanOverall.reduceRegions({collection: buffered_routes_filt02lower ,reducer: ee.Reducer.mean(), scale: 1000});
+var MEANbufferaverages03lower = MeanOverall.reduceRegions({collection: buffered_routes_filt03lower ,reducer: ee.Reducer.mean(), scale: 1000});
+var MEANbufferaverages04lower1= MeanOverall.reduceRegions({collection: buffered_routes_filt04lower1,reducer: ee.Reducer.mean(), scale: 1000});
+var MEANbufferaverages04lower2= MeanOverall.reduceRegions({collection: buffered_routes_filt04lower2,reducer: ee.Reducer.mean(), scale: 1000});
+var MEANbufferaverages05lower1= MeanOverall.reduceRegions({collection: buffered_routes_filt05lower1,reducer: ee.Reducer.mean(), scale: 1000});
+var MEANbufferaverages05lower2= MeanOverall.reduceRegions({collection: buffered_routes_filt05lower2,reducer: ee.Reducer.mean(), scale: 1000});
+var MEANbufferaverages06lower = MeanOverall.reduceRegions({collection: buffered_routes_filt06lower ,reducer: ee.Reducer.mean(), scale: 1000});
+var MEANbufferaverages07lower = MeanOverall.reduceRegions({collection: buffered_routes_filt07lower ,reducer: ee.Reducer.mean(), scale: 1000});
+var MEANbufferaverages10lower = MeanOverall.reduceRegions({collection: buffered_routes_filt10lower ,reducer: ee.Reducer.mean(), scale: 1000});
+var MEANbufferaverages08      = MeanOverall.reduceRegions({collection: buffered_routes_filt08      ,reducer: ee.Reducer.mean(), scale: 1000});
+var MEANbufferaverages09      = MeanOverall.reduceRegions({collection: buffered_routes_filt09      ,reducer: ee.Reducer.mean(), scale: 1000});
+var MEANbufferaverages11      = MeanOverall.reduceRegions({collection: buffered_routes_filt11      ,reducer: ee.Reducer.mean(), scale: 1000});
+var MEANbufferaverages12      = MeanOverall.reduceRegions({collection: buffered_routes_filt12      ,reducer: ee.Reducer.mean(), scale: 1000});
+var MEANbufferaverages13      = MeanOverall.reduceRegions({collection: buffered_routes_filt13      ,reducer: ee.Reducer.mean(), scale: 1000});
+var MEANbufferaverages14      = MeanOverall.reduceRegions({collection: buffered_routes_filt14      ,reducer: ee.Reducer.mean(), scale: 1000});
+var MEANbufferaverages15      = MeanOverall.reduceRegions({collection: buffered_routes_filt15      ,reducer: ee.Reducer.mean(), scale: 1000});
+var MEANbufferaverages16      = MeanOverall.reduceRegions({collection: buffered_routes_filt16      ,reducer: ee.Reducer.mean(), scale: 1000});
+var MEANbufferaverages17      = MeanOverall.reduceRegions({collection: buffered_routes_filt17      ,reducer: ee.Reducer.mean(), scale: 1000});
+var MEANbufferaverages18      = MeanOverall.reduceRegions({collection: buffered_routes_filt18      ,reducer: ee.Reducer.mean(), scale: 1000});
+var MEANbufferaverages19      = MeanOverall.reduceRegions({collection: buffered_routes_filt19      ,reducer: ee.Reducer.mean(), scale: 1000});
+var MEANbufferaverages20      = MeanOverall.reduceRegions({collection: buffered_routes_filt20      ,reducer: ee.Reducer.mean(), scale: 1000});
+var MEANbufferaverages21      = MeanOverall.reduceRegions({collection: buffered_routes_filt21      ,reducer: ee.Reducer.mean(), scale: 1000});
+var MEANbufferaverages22      = MeanOverall.reduceRegions({collection: buffered_routes_filt22      ,reducer: ee.Reducer.mean(), scale: 1000});
+var MEANbufferaverages23      = MeanOverall.reduceRegions({collection: buffered_routes_filt23      ,reducer: ee.Reducer.mean(), scale: 1000});
+
+/// Exporting
+Export.table.toDrive({collection: MEANbufferaverages00      ,description: 'MEANbufferaverages00',fileFormat: 'CSV'});   
+Export.table.toDrive({collection: MEANbufferaverages01upper ,description: 'MEANbufferaverages01upper',fileFormat: 'CSV'});   
+Export.table.toDrive({collection: MEANbufferaverages02upper ,description: 'MEANbufferaverages02upper',fileFormat: 'CSV'});   
+Export.table.toDrive({collection: MEANbufferaverages03upper ,description: 'MEANbufferaverages03upper',fileFormat: 'CSV'});   
+Export.table.toDrive({collection: MEANbufferaverages04upper ,description: 'MEANbufferaverages04upper',fileFormat: 'CSV'});   
+Export.table.toDrive({collection: MEANbufferaverages05upper ,description: 'MEANbufferaverages05upper',fileFormat: 'CSV'});   
+Export.table.toDrive({collection: MEANbufferaverages06upper ,description: 'MEANbufferaverages06upper',fileFormat: 'CSV'});   
+Export.table.toDrive({collection: MEANbufferaverages07upper ,description: 'MEANbufferaverages07upper',fileFormat: 'CSV'});   
+Export.table.toDrive({collection: MEANbufferaverages10upper ,description: 'MEANbufferaverages10upper',fileFormat: 'CSV'});   
+Export.table.toDrive({collection: MEANbufferaverages01lower ,description: 'MEANbufferaverages01lower',fileFormat: 'CSV'});   
+Export.table.toDrive({collection: MEANbufferaverages02lower ,description: 'MEANbufferaverages02lower',fileFormat: 'CSV'});   
+Export.table.toDrive({collection: MEANbufferaverages03lower ,description: 'MEANbufferaverages03lower',fileFormat: 'CSV'});   
+Export.table.toDrive({collection: MEANbufferaverages04lower1,description: 'MEANbufferaverages04lower1',fileFormat: 'CSV'});   
+Export.table.toDrive({collection: MEANbufferaverages04lower2,description: 'MEANbufferaverages04lower2',fileFormat: 'CSV'});   
+Export.table.toDrive({collection: MEANbufferaverages05lower1,description: 'MEANbufferaverages05lower1',fileFormat: 'CSV'});   
+Export.table.toDrive({collection: MEANbufferaverages05lower2,description: 'MEANbufferaverages05lower2',fileFormat: 'CSV'});   
+Export.table.toDrive({collection: MEANbufferaverages06lower ,description: 'MEANbufferaverages06lower',fileFormat: 'CSV'});   
+Export.table.toDrive({collection: MEANbufferaverages07lower ,description: 'MEANbufferaverages07lower',fileFormat: 'CSV'});   
+Export.table.toDrive({collection: MEANbufferaverages10lower ,description: 'MEANbufferaverages10lower',fileFormat: 'CSV'});   
+Export.table.toDrive({collection: MEANbufferaverages08      ,description: 'MEANbufferaverages08',fileFormat: 'CSV'});   
+Export.table.toDrive({collection: MEANbufferaverages09      ,description: 'MEANbufferaverages09',fileFormat: 'CSV'});   
+Export.table.toDrive({collection: MEANbufferaverages11      ,description: 'MEANbufferaverages11',fileFormat: 'CSV'});   
+Export.table.toDrive({collection: MEANbufferaverages12      ,description: 'MEANbufferaverages12',fileFormat: 'CSV'});   
+Export.table.toDrive({collection: MEANbufferaverages13      ,description: 'MEANbufferaverages13',fileFormat: 'CSV'});   
+Export.table.toDrive({collection: MEANbufferaverages14      ,description: 'MEANbufferaverages14',fileFormat: 'CSV'});   
+Export.table.toDrive({collection: MEANbufferaverages15      ,description: 'MEANbufferaverages15',fileFormat: 'CSV'});   
+Export.table.toDrive({collection: MEANbufferaverages16      ,description: 'MEANbufferaverages16',fileFormat: 'CSV'});   
+Export.table.toDrive({collection: MEANbufferaverages17      ,description: 'MEANbufferaverages17',fileFormat: 'CSV'});   
+Export.table.toDrive({collection: MEANbufferaverages18      ,description: 'MEANbufferaverages18',fileFormat: 'CSV'});   
+Export.table.toDrive({collection: MEANbufferaverages19      ,description: 'MEANbufferaverages19',fileFormat: 'CSV'});   
+Export.table.toDrive({collection: MEANbufferaverages20      ,description: 'MEANbufferaverages20',fileFormat: 'CSV'});   
+Export.table.toDrive({collection: MEANbufferaverages21      ,description: 'MEANbufferaverages21',fileFormat: 'CSV'});   
+Export.table.toDrive({collection: MEANbufferaverages22      ,description: 'MEANbufferaverages22',fileFormat: 'CSV'});   
+Export.table.toDrive({collection: MEANbufferaverages23      ,description: 'MEANbufferaverages23',fileFormat: 'CSV'});   
+
+
+```
+
+# R code to collate outputs into single .csv. 
+
+Assumes files downloaded from the google drive!
+
+```{r message = FALSE}
+library(tidyverse)
+map <- purrr::map
+select <- dplyr::select
+
+CV_files <- list.files('../Data/gpp/CV/',full.names  = TRUE)
+MEAN_files <- list.files('../Data/gpp/MEAN/', full.names = TRUE)
+
+
+CV_df<- map_df(CV_files, read_csv)%>%
+  rename(CV_gpp= mean)
+
+
+MEAN_df<- map_df(MEAN_files, read_csv)%>%
+  rename(MEAN_gpp= mean)
+
+MEAN_df %>%
+  ggplot(aes( y = Lat, x = Long, col = MEAN_gpp))+
+  geom_point()+
+  scale_colour_viridis_c()
+
+
+CV_df %>%
+  ggplot(aes( y = Lat, x = Long, col = CV_gpp))+
+  geom_point()+
+  scale_colour_viridis_c()
+
+
+CV_df %>%
+  left_join(MEAN_df)%>%
+  select(RTENO, CV_gpp,MEAN_gpp) #%>%
+#  write_csv('../Data/ProductivityTransects.csv')
+
+```
+
+
+# Session Info
+
+```{r}
+sessionInfo()
+```
+

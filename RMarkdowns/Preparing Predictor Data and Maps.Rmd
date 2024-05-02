@@ -1,0 +1,216 @@
+---
+title: "Prepping Predictor Data"
+output: 
+  html_document: 
+    toc: yes
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+This script combines the various pieces of predictor data and makes Figure 3 (the maps of the predictors and BCRs)
+
+```{r message = FALSE, echo = FALSE}
+library(tidyverse)
+library(purrr)
+library(stringr)
+library(maps)
+library(cowplot)
+map <- purrr::map
+select <- dplyr::select
+```
+
+## Transect Stats Data Input
+
+Combining all the various pieces of predictor data
+
+```{R message = FALSE, echo = FALSE}
+load(file = '../Data/2020Release_Nor/matrix_form_filt1')  ### list of matrices
+
+TransectStats <- read_csv('../Data/TransectStats.csv')
+AllRoutes<- read_csv('../Data/2020Release_Nor/routes.csv')%>%
+  mutate(RTENO = parse_number(paste0(StateNum ,Route)))
+RTENO_lookup <- read_csv('../Data/RTENO_lookup.csv')
+Productivity <- read_csv('../Data/ProductivityTransects.csv')
+
+InRange_all_df_collapsed <-read_csv('../Data/InRange_all_df_collapsed.csv')
+InRange_all_df_collapsed %>%
+  gather( Species, Present,   abetow:yetwar    ) %>%
+  group_by(RouteNumber) %>%
+  summarise( Gamma_Div_Ebird = sum(Present)) %>%
+  mutate(RTENO = RouteNumber) -> Gamma_Div_Ebird_df
+
+TransectStats %>%
+  left_join(RTENO_lookup, by = "TransectID") %>%
+  left_join(AllRoutes, by = "RTENO") %>%
+  left_join(Productivity, by = "RTENO")%>%
+  left_join(Gamma_Div_Ebird_df, by = "RTENO")-> STATS
+
+```
+
+```{R eval = FALSE}
+write_csv(STATS, '../Data/STATS.csv')
+
+STATS %>%
+  select(  TransectID,RTENAME ,Average_Richness, BCR, CV_gpp,
+           MEAN_gpp, Gamma_Div_Ebird ,Av_HMindex,Year_span   ) -> STATS_select
+
+write_csv(STATS_select, '../Data/STATS_select.csv')
+```
+
+### Scaling statistics
+
+So each of the predictors is approximately in the 0-1 range.
+Using fixed transformations, so won't be impacted by any future changes in data filterring.
+Human modification index already roughly 0-1, so using raw values. 
+
+```{r eval = FALSE}
+STATS_select$Av_HMindex %>% hist
+STATS_select %>%
+  mutate(AvRich_100 = Average_Richness/100,
+         CV_gpp_scaled = sqrt(CV_gpp), 
+         MEAN_gpp_scaled = MEAN_gpp/300,
+         Gamma_scaled = Gamma_Div_Ebird/150) %>%
+  write_csv('../Data/STATS_select_SCALED.csv')
+```
+
+# Maps of Transect Predictor Values
+
+```{r}
+STATS <- read_csv('../Data/STATS.csv')
+BCR_lookup <- read_csv('../Data/BCR_Lookup.csv')
+
+world_map <- map_data('world')
+USMAP<- map_data('state')
+
+library(Polychrome)
+BCRcolours <- unname(glasbey.colors(27))
+
+Core_data <- STATS %>%
+  filter(!is.na(Av_HMindex)) %>%
+  arrange(BCR )%>%
+  left_join(BCR_lookup,
+            by = "BCR") %>%
+  mutate( BCR_Name = paste0(BCR,': ', Name)) %>%
+  add_count(BCR, name = 'NumInBCR') %>%
+  filter(NumInBCR >= 25)
+
+```
+
+
+```{r}
+
+CoreMAP <- Core_data %>%
+  ggplot()+
+  geom_map(aes(map_id=region ),data =  USMAP,
+           map = USMAP, fill = 'grey70')+
+  coord_quickmap(xlim = c(-125, -65), ylim = c(25, 50))+
+  theme_nothing()
+
+## Humans
+A <- CoreMAP+
+  geom_point( aes(y=Latitude, x = Longitude,
+                  col = Av_HMindex), size = 0.8)+
+  scale_color_viridis_c(limits = c(0,0.8))+
+  guides(col = guide_colorbar(title='Human Impact (HM)',
+                              title.position = 'top' ))+
+  theme(legend.position  = c(0.2, 0.1),
+        legend.direction = 'horizontal',
+        legend.text = element_text(size = 9),
+        legend.title = element_text(size = 12))
+
+## Variability
+
+B <- CoreMAP+
+  geom_point( aes(y=Latitude, x = Longitude,
+                  col = sqrt(CV_gpp) ), size = 0.8)+
+  scale_color_viridis_c(limits = c(0.1,0.6))+
+  guides(col = guide_colorbar(title='Variability (CV)',
+                              title.position = 'top' ))+
+  theme(legend.position  = c(0.2, 0.1),
+        legend.direction = 'horizontal',
+        legend.text = element_text(size = 9),
+        legend.title = element_text(size = 12))
+
+
+## Gamma
+C <- CoreMAP+  geom_point( aes(y=Latitude, x = Longitude,
+                               col = Gamma_Div_Ebird  ), size = 0.8)+
+  scale_color_viridis_c(limits = c(50,175))+
+  guides(col = guide_colorbar(title= 'Species Pool (GM)',
+                              title.position = 'top' ))+
+  theme(legend.position  = c(0.2, 0.1),
+        legend.direction = 'horizontal',
+        legend.text = element_text(size = 9),
+        legend.title = element_text(size = 12))
+
+## Alpha 
+D<- CoreMAP+  geom_point( aes(y=Latitude, x = Longitude,
+                              col = Average_Richness   ), size = 0.8)+
+  scale_color_viridis_c(limits = c(0,80))+
+  guides(col = guide_colorbar(title='Species Richness (AL)',
+                              title.position = 'top' ))+
+  theme(legend.position  = c(0.2, 0.1),
+        legend.direction = 'horizontal',
+        legend.text = element_text(size = 9),
+        legend.title = element_text(size = 12))
+
+## Assembling
+top<- plot_grid(A,B, C,D, nrow =1, labels = 'auto', label_fontface = 'plain')
+```
+
+```{r}
+## BCR map
+
+### Ordering BCRs
+
+Core_data %>%
+  distinct(BCR_Name) %>% 
+  pluck('BCR_Name') -> BCR_names_ordered
+
+E <- CoreMAP+
+  geom_point( aes(y=Latitude, x = Longitude, colour = BCR_Name  ),
+              shape = 19, size =0.8)+
+  scale_colour_manual(values = BCRcolours,
+                      guide_legend( title = 'Bird Conservation Region'), 
+                      limits = BCR_names_ordered)+
+  theme(legend.text = element_text(size =7),
+        legend.title = element_text(size =11),
+        legend.key = element_rect(fill = 'grey70'),
+        legend.position = 'right' )+
+  guides(col = guide_legend(ncol = 3,
+                            override.aes = c(size = 4) ,
+                            title.position = 'top' ))
+
+bot <- plot_grid(E+guides(col='none'),get_legend(E), rel_widths = c(2,3))
+bot
+```
+
+```{r fig.height=6, fig.width=12}
+## All together, predictor data
+
+topSQ<- plot_grid(A,B, C,D, nrow =2, labels = 'auto',
+                  label_fontface = 'plain')
+
+
+PredictorMaps<- plot_grid(topSQ, E, ncol =1, rel_heights = c(3.5,1.2) ,
+                          labels = c('', 'e'),  label_fontface = 'plain')
+
+PredictorMaps
+ggsave('../MS_figs/Predictor_maps_HIRES.png',PredictorMaps,
+       width = 12, height = 9, bg = 'white', dpi = 600)
+
+ggsave('../MS_figs/Predictor_maps.png',PredictorMaps,
+       width = 12, height = 9, bg = 'white', dpi = 100)
+```
+
+# Session Info
+
+```{r}
+sessionInfo()
+```
+
+

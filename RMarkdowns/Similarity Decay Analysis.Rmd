@@ -1,0 +1,306 @@
+---
+title: "Similarity Decay Analysis"
+output: 
+  html_document: 
+    toc: yes
+editor_options: 
+  chunk_output_type: console
+---
+
+This document reads in the BCR-level similarity decay curve fitting results, and carries out the 'meta-analysis' (cross-BCR) analysis. 
+
+```{r message = FALSE, warning = FALSE}
+library(tidyverse)
+library(vegan)  
+library(purrr)
+library(brms)
+library(stringr)
+library(bayesplot)
+library(tidybayes)
+library(posterior)
+library(cowplot)
+library(scales)
+
+map <- purrr::map
+select <- dplyr::select
+
+logit <- function(x){return(log(x/(1-x)))}
+inv_logit <- function(x){exp(x)/(1+exp(x))}
+
+
+STATS <- read_csv('../Data/STATS.csv')
+STATS_select <- read_csv('../Data/STATS_select.csv')
+STATS_select_scaled <- read_csv('../Data/STATS_select_SCALED.csv')
+
+AllInferredCurveParams<- read_csv('../ModelSummaries/AllCurveParams_WOPreds1.csv') # made elsewhere (Inferring Curve Parameters...)
+
+```
+
+# Calculating Dissimilarities
+
+```{r eval = FALSE}
+# load(file = '../Data/2020Release_Nor/matrix_form_filt1') 
+# kept just for reference
+matrix_form %>%
+  map(   function(matrix_input){
+
+    if(nrow(matrix_input)==1){ ## catch annoying short year that sneaks through
+      return(data.frame(Year1 = matrix_input[1,1],Year2 =  matrix_input[1,1] , YearDiff = 0,  JaccDist = 0,  SorenDist = 0) )}
+
+    ### doing the filtering of very erratic yearss in here (NB will need to carry over into other functions that use matrix_form)
+    Richnesses <- rowSums(matrix_input[,-1])
+      LowerBound =  mean(Richnesses) -2 *sd(Richnesses)
+      UpperBound =  mean(Richnesses) +2 *sd(Richnesses)
+      YearsToKeep <- Richnesses>LowerBound & Richnesses<UpperBound
+      matrix_input<- matrix_input[YearsToKeep, ]
+
+    YEARS <- matrix_input[,1]
+    YearDiff<-as.matrix(dist(YEARS))
+    JaccDist <- as.matrix(vegdist(matrix_input[,-1],method = 'jaccard' ))
+    SorenDist <- as.matrix(vegdist(matrix_input[,-1],method = 'bray' ))
+    data.frame(Year1 = rep(YEARS,length(YEARS)) ,
+               Year2 = rep(YEARS,each = length(YEARS)) ,
+               YearDiff = as.vector(YearDiff),
+               JaccDist = as.vector(JaccDist),
+               SorenDist = as.vector(SorenDist)) %>%
+      filter( Year1 < Year2) %>%
+      return()
+  }) %>%
+  map_dfr(.f = ~.,.id = 'TransectID')-> Sim_Diff_df
+
+write_csv(Sim_Diff_df, '../Data/2020Release_Nor/Dissim_Diff_df_filt2.csv')  
+```
+
+## Processing and Filtering out very short datasets
+```{r eval = FALSE}
+Sim_Diff_df<- read_csv('../Data/2020Release_Nor/Dissim_Diff_df_filt2.csv')
+
+Sim_Diff_df %>%
+  group_by(TransectID ) %>%
+  mutate( Start = min(Year1), 
+          N_Returns = n_distinct(Year2 )) %>%
+  filter(N_Returns>10) -> Sim_AllPairs
+
+All_IDS<- unique(Sim_AllPairs$TransectID)
+
+Sim_AllPairs %>%
+  mutate(Soren_sim = 1-SorenDist) %>%
+  select( TransectID, YearDiff, Soren_sim ) %>%
+  group_by(TransectID, YearDiff) %>%
+  summarise( y = mean(Soren_sim),
+             n = n(),
+             SD=sd(Soren_sim),
+             se_raw = sd(Soren_sim)/sqrt(n())) %>%
+  mutate(  mean_sd = mean(SD,na.rm=TRUE),
+           se = if_else(is.na(se_raw),mean_sd,se_raw )) %>%
+  rename(x = YearDiff) %>%
+  arrange(TransectID)  -> Average_Curves
+
+write_csv(Average_Curves, '../Data/All_Average_Curves.csv')
+```
+
+### Table of BCRs to fit
+```{r eval = FALSE}
+Average_Curves %>%
+  nest() %>%
+  left_join(STATS_select, by = "TransectID")%>%
+  filter( !is.na(Gamma_Div_Ebird))%>%
+  ungroup() %>%
+  count(BCR) %>%
+  arrange(BCR) %>%
+  filter(n>=25) -> BCRsToFit
+
+write_csv(BCRsToFit, '../Data/BCRsToFit.csv')
+```
+
+# Record of HPC Scripts used
+
+The main model fitting is conducted in parallel on HPC. 
+
+### `Stanfit_All3.R`
+
+For the 'inbuilt' regression.
+
+```{r, file='../Scripts/Stanfit_All3.R', eval = FALSE}
+```
+
+### `Stanfit_noPreds.R`
+
+For the direct fitting, to extract the fitted parameters without additional errors. 
+
+```{r, file='../Scripts/Stanfit_noPreds.R', eval = FALSE}
+```
+
+# Processing raw results
+
+(NB calculating posterior summary statistics takes a few minutes)
+
+```{r}
+EXTRACT_ALL_FUNC <- function(Model, BCR){
+  print(BCR)
+  draws <- as_draws_array(Model)
+  Draw_summary <- summarise_draws(draws,  default_summary_measures(), default_convergence_measures())
+  Draw_summary %>%mutate(BCR = BCR ) %>% return()
+}
+
+LOAD_MODELS_FUNC <- function(File){ x<- load(File);  return(Model)}
+```
+
+```{r eval = FALSE}
+RE_Human <- list.files('../ModelFits/All_preds3/', full.names = TRUE)
+Model_list_RE_Human <-map(RE_Human, LOAD_MODELS_FUNC)
+SummaryTableRE_Human<- map2_df(Model_list_RE_Human,
+                               str_extract(RE_Human,  '[0-9]+$'),
+                               EXTRACT_ALL_FUNC)
+write_csv(SummaryTableRE_Human, '../ModelSummaries/SummaryTable_ALL3.csv')
+```
+
+### Saving example STAN scripts 
+
+Included here just for reference - all fitting is done by brms. 
+
+```{r eval = FALSE}
+
+Model_list_RE_Human[[1]]$model
+
+
+Model_list_RE_Human[[1]]$prior
+
+```
+
+
+# Overall Results
+
+```{r message = FALSE}
+SummaryTableRE_Human <- read_csv('../ModelSummaries/SummaryTable_ALL3.csv')
+SummaryTableRE_Human
+```
+
+## Fitting 'Overall' Models
+
+Sperate models fit for each curve parameter and each predictor. 
+
+```{r message = FALSE, results='hide',warning = FALSE}
+SummaryTableRE_Human%>% 
+  filter(str_detect(variable, 'beta'))%>%
+  mutate(Response = str_sub(variable,7,7),
+         Predictor = str_sub(variable,8,9)) %>%
+  select( Response, Predictor,mean, sd, BCR) -> CurveFitEsts
+
+## Compile model once
+
+ModelBase_MAcurve    <- brm(bf(mean|se(sd)~1), data = CurveFitEsts, iter =5000 , silent = 2, refresh =0)
+
+Curve_d_Overall_HM    <-summarise_draws(update(ModelBase_MAcurve,
+                                               newdata =  filter(CurveFitEsts, Response == 'd', Predictor == 'HM')))
+Curve_d_Overall_CV    <-summarise_draws(update(ModelBase_MAcurve,
+                                               newdata =  filter(CurveFitEsts, Response == 'd', Predictor == 'CV')))
+Curve_d_Overall_AL    <-summarise_draws(update(ModelBase_MAcurve,
+                                               newdata =  filter(CurveFitEsts, Response == 'd', Predictor == 'AL')))
+Curve_d_Overall_GM    <-summarise_draws(update(ModelBase_MAcurve,
+                                               newdata =  filter(CurveFitEsts, Response == 'd', Predictor == 'GM')))
+Curve_d_Overall_YS    <-summarise_draws(update(ModelBase_MAcurve,
+                                               newdata =  filter(CurveFitEsts, Response == 'd', Predictor == 'YS')))
+
+Curve_L_Overall_HM    <-summarise_draws(update(ModelBase_MAcurve,
+                                               newdata =  filter(CurveFitEsts, Response == 'L', Predictor == 'HM')))
+Curve_L_Overall_CV    <-summarise_draws(update(ModelBase_MAcurve,
+                                               newdata =  filter(CurveFitEsts, Response == 'L', Predictor == 'CV')))
+Curve_L_Overall_AL    <-summarise_draws(update(ModelBase_MAcurve,
+                                               newdata =  filter(CurveFitEsts, Response == 'L', Predictor == 'AL')))
+Curve_L_Overall_GM    <-summarise_draws(update(ModelBase_MAcurve,
+                                               newdata =  filter(CurveFitEsts, Response == 'L', Predictor == 'GM')))
+Curve_L_Overall_YS    <-summarise_draws(update(ModelBase_MAcurve,
+                                               newdata =  filter(CurveFitEsts, Response == 'L', Predictor == 'YS')))
+
+Curve_o_Overall_HM    <-summarise_draws(update(ModelBase_MAcurve,
+                                               newdata =  filter(CurveFitEsts, Response == 'o', Predictor == 'HM')))
+Curve_o_Overall_CV    <-summarise_draws(update(ModelBase_MAcurve,
+                                               newdata =  filter(CurveFitEsts, Response == 'o', Predictor == 'CV')))
+Curve_o_Overall_AL    <-summarise_draws(update(ModelBase_MAcurve,
+                                               newdata =  filter(CurveFitEsts, Response == 'o', Predictor == 'AL')))
+Curve_o_Overall_GM    <-summarise_draws(update(ModelBase_MAcurve,
+                                               newdata =  filter(CurveFitEsts, Response == 'o', Predictor == 'GM')))
+Curve_o_Overall_YS    <-summarise_draws(update(ModelBase_MAcurve,
+                                               newdata =  filter(CurveFitEsts, Response == 'o', Predictor == 'YS')))
+
+Curve_d_Overall_HM$Response <- 'd' 
+Curve_d_Overall_CV$Response <- 'd' 
+Curve_d_Overall_AL$Response <- 'd' 
+Curve_d_Overall_GM$Response <- 'd' 
+Curve_d_Overall_YS$Response <- 'd' 
+
+Curve_L_Overall_HM$Response <- 'L' 
+Curve_L_Overall_CV$Response <- 'L' 
+Curve_L_Overall_AL$Response <- 'L' 
+Curve_L_Overall_GM$Response <- 'L' 
+Curve_L_Overall_YS$Response <- 'L' 
+
+Curve_o_Overall_HM$Response <- 'o' 
+Curve_o_Overall_CV$Response <- 'o' 
+Curve_o_Overall_AL$Response <- 'o' 
+Curve_o_Overall_GM$Response <- 'o' 
+Curve_o_Overall_YS$Response <- 'o' 
+
+
+Curve_d_Overall_HM$Predictor = 'HM'
+Curve_d_Overall_CV$Predictor = 'CV'
+Curve_d_Overall_AL$Predictor = 'AL'
+Curve_d_Overall_GM$Predictor = 'GM'
+Curve_d_Overall_YS$Predictor = 'YS'
+
+Curve_L_Overall_HM$Predictor = 'HM'
+Curve_L_Overall_CV$Predictor = 'CV'
+Curve_L_Overall_AL$Predictor = 'AL'
+Curve_L_Overall_GM$Predictor = 'GM'
+Curve_L_Overall_YS$Predictor = 'YS'
+
+Curve_o_Overall_HM$Predictor = 'HM'
+Curve_o_Overall_CV$Predictor = 'CV'
+Curve_o_Overall_AL$Predictor = 'AL'
+Curve_o_Overall_GM$Predictor = 'GM'
+Curve_o_Overall_YS$Predictor = 'YS'
+
+
+bind_rows(Curve_d_Overall_HM,
+          Curve_d_Overall_CV,
+          Curve_d_Overall_AL,
+          Curve_d_Overall_GM,
+          Curve_d_Overall_YS,
+          Curve_L_Overall_HM,
+          Curve_L_Overall_CV,
+          Curve_L_Overall_AL,
+          Curve_L_Overall_GM,
+          Curve_L_Overall_YS,
+          Curve_o_Overall_HM,
+          Curve_o_Overall_CV,
+          Curve_o_Overall_AL,
+          Curve_o_Overall_GM ,
+          Curve_o_Overall_YS) %>%
+  filter(variable=='b_Intercept') -> AllCurveCoefs
+```
+
+```{r}
+AllCurveCoefs
+write_csv(AllCurveCoefs,'../ModelSummaries/AllCurveCoefs.csv')
+
+```
+
+## Rough Plot
+```{r}
+AllCurveCoefs%>%
+  ggplot( aes( x = Predictor))+
+  geom_pointrange(aes(y = mean, ymin = q5, ymax = q95))+
+  scale_colour_viridis_c()+
+  geom_hline(yintercept =0)+
+  facet_wrap(Response~., ncol=1)+
+  ggtitle('Overall (Cross-BCR) Turnover Curve Predictors')+
+  coord_flip()
+```
+
+
+# Session Info
+
+```{r}
+sessionInfo()
+```

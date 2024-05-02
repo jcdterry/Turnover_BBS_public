@@ -1,0 +1,446 @@
+AOU,English_Common_Name,ConsolAOU,ProblemTaxa
+2890,Northern Bobwhite,2890,FALSE
+3131,Rock Pigeon,3131,FALSE
+3160,Mourning Dove,3160,FALSE
+3870,Yellow-billed Cuckoo,3875,TRUE
+3940,Downy Woodpecker,3940,FALSE
+4050,Pileated Woodpecker,4050,FALSE
+4090,Red-bellied Woodpecker,4090,FALSE
+4120,(Yellow-shafted Flicker) Northern Flicker,4120,FALSE
+4230,Chimney Swift,4230,FALSE
+4440,Eastern Kingbird,4440,FALSE
+4610,Eastern Wood-Pewee,4610,FALSE
+4650,Acadian Flycatcher,4650,FALSE
+4770,Blue Jay,4770,FALSE
+4880,American Crow,4881,TRUE
+4880,American Crow,4882,TRUE
+4930,European Starling,4930,FALSE
+4950,Brown-headed Cowbird,4955,TRUE
+4980,Red-winged Blackbird,4980,FALSE
+5010,Eastern Meadowlark,5012,TRUE
+5060,Orchard Oriole,5060,FALSE
+5110,Common Grackle,5110,FALSE
+5290,American Goldfinch,5290,FALSE
+5600,Chipping Sparrow,5600,FALSE
+5630,Field Sparrow,5630,FALSE
+5870,Eastern Towhee,5871,TRUE
+5930,Northern Cardinal,5935,TRUE
+5970,Blue Grosbeak,5970,FALSE
+5980,Indigo Bunting,5980,FALSE
+6040,Dickcissel,6040,FALSE
+6080,Scarlet Tanager,6080,FALSE
+6100,Summer Tanager,6100,FALSE
+6110,Purple Martin,6110,FALSE
+6130,Barn Swallow,6130,FALSE
+6220,Loggerhead Shrike,6220,FALSE
+6240,Red-eyed Vireo,6240,FALSE
+6310,White-eyed Vireo,6310,FALSE
+6730,Prairie Warbler,6730,FALSE
+6740,Ovenbird,6740,FALSE
+6810,Common Yellowthroat,6810,FALSE
+6830,Yellow-breasted Chat,6830,FALSE
+6882,House Sparrow,6882,FALSE
+7030,Northern Mockingbird,7030,FALSE
+7040,Gray Catbird,7040,FALSE
+7050,Brown Thrasher,7050,FALSE
+7180,Carolina Wren,7180,FALSE
+7310,Tufted Titmouse,7315,TRUE
+7360,Carolina Chickadee,7352,TRUE
+7510,Blue-gray Gnatcatcher,7510,FALSE
+7550,Wood Thrush,7550,FALSE
+7610,American Robin,7610,FALSE
+7660,Eastern Bluebird,7660,FALSE
+3930,Hairy Woodpecker,3930,FALSE
+4520,Great Crested Flycatcher,4520,FALSE
+4560,Eastern Phoebe,4560,FALSE
+5070,Baltimore Oriole,5077,TRUE
+5460,Grasshopper Sparrow,5460,FALSE
+6170,Northern Rough-winged Swallow,6170,FALSE
+6370,Prothonotary Warbler,6370,FALSE
+6630,Yellow-throated Warbler,6630,FALSE
+6120,Cliff Swallow,6122,TRUE
+6580,Cerulean Warbler,6580,FALSE
+7270,White-breasted Nuthatch,7270,FALSE
+4280,Ruby-throated Hummingbird,4295,TRUE
+4740,Horned Lark,4740,FALSE
+6360,Black-and-white Warbler,6360,FALSE
+6520,Yellow Warbler,6520,FALSE
+6710,Pine Warbler,6710,FALSE
+6770,Kentucky Warbler,6770,FALSE
+6410,Blue-winged Warbler,6410,FALSE
+7190,Bewick's Wren,7190,FALSE
+4060,Red-headed Woodpecker,4060,FALSE
+6280,Yellow-throated Vireo,6280,FALSE
+6480,Northern Parula,6480,FALSE
+6840,Hooded Warbler,6840,FALSE
+5810,Song Sparrow,5810,FALSE
+6870,American Redstart,6870,FALSE
+4900,Fish Crow,4881,TRUE
+6190,Cedar Waxwing,6185,TRUE
+6390,Worm-eating Warbler,6390,FALSE
+6760,Louisiana Waterthrush,6760,FALSE
+5190,House Finch,5190,FALSE
+6270,Warbling Vireo,6270,FALSE
+7210,House Wren,7210,FALSE
+22860,Eurasian Collared-Dove,22860,FALSE
+5520,Lark Sparrow,5520,FALSE
+3100,Wild Turkey,3100,FALSE
+6380,Swainson's Warbler,6380,FALSE
+6140,Tree Swallow,6140,FALSE
+5750,Bachman's Sparrow,5750,FALSE
+7290,Brown-headed Nuthatch,7290,FALSE
+6160,Bank Swallow,6160,FALSE
+3880,Black-billed Cuckoo,3875,TRUE
+6670,Black-throated Green Warbler,6670,FALSE
+3950,Red-cockaded Woodpecker,3950,FALSE
+6290,Blue-headed Vireo,6295,TRUE
+6590,Chestnut-sided Warbler,6590,FALSE
+3920,unid. woodpecker,3920,FALSE
+3200,Common Ground Dove,3200,FALSE
+4881,unid. American Crow / Fish Crow,4881,TRUE
+3210,Inca Dove,3210,FALSE
+6010,Painted Bunting,6010,FALSE
+5500,Seaside Sparrow,5500,FALSE
+7250,Marsh Wren,7250,FALSE
+7560,Veery,7560,FALSE
+5130,Boat-tailed Grackle,5135,TRUE
+4450,Gray Kingbird,4450,FALSE
+3190,White-winged Dove,3190,FALSE
+5210,Red Crossbill,5225,TRUE
+5210,Red Crossbill,5212,TRUE
+4961,Shiny Cowbird,4961,FALSE
+6260,Philadelphia Vireo,6260,FALSE
+4661,Alder Flycatcher,4665,TRUE
+4840,Canada Jay,4840,FALSE
+4860,Common Raven,4865,TRUE
+5280,Common Redpoll,5280,FALSE
+5540,White-crowned Sparrow,5540,FALSE
+5670,(Slate-colored Junco) Dark-eyed Junco,5670,FALSE
+6150,Violet-green Swallow,6150,FALSE
+6180,Bohemian Waxwing,6185,TRUE
+6460,Orange-crowned Warbler,6460,FALSE
+6550,(Myrtle Warbler) Yellow-rumped Warbler,6550,FALSE
+6750,Northern Waterthrush,6750,FALSE
+6800,MacGillivray's Warbler,6800,FALSE
+7490,Ruby-crowned Kinglet,7490,FALSE
+7570,Gray-cheeked Thrush,7570,FALSE
+7580,Swainson's Thrush,7580,FALSE
+7630,Varied Thrush,7630,FALSE
+4590,Olive-sided Flycatcher,4590,FALSE
+4680,Hammond's Flycatcher,4689,TRUE
+5220,White-winged Crossbill,5225,TRUE
+5420,Savannah Sparrow,5420,FALSE
+5830,Lincoln's Sparrow,5830,FALSE
+6850,Wilson's Warbler,6850,FALSE
+7400,Boreal Chickadee,7354,TRUE
+7540,Townsend's Solitaire,7540,FALSE
+7590,Hermit Thrush,7590,FALSE
+5150,Pine Grosbeak,5150,FALSE
+5850,Fox Sparrow,5850,FALSE
+4630,Yellow-bellied Flycatcher,4630,FALSE
+6680,Townsend's Warbler,6685,TRUE
+3010,Willow Ptarmigan,3010,FALSE
+4010,American Three-toed Woodpecker,4010,FALSE
+4570,Say's Phoebe,4570,FALSE
+4620,Western Wood-Pewee,4620,FALSE
+4670,Least Flycatcher,4670,FALSE
+5275,unid. Common Redpoll / Hoary Redpoll,5275,TRUE
+6470,Tennessee Warbler,6470,FALSE
+4123,(unid. Red/Yellow Shafted) Northern Flicker,4123,FALSE
+5590,American Tree Sparrow,5590,FALSE
+6610,Blackpoll Warbler,6610,FALSE
+2980,Spruce Grouse,2980,FALSE
+5090,Rusty Blackbird,5090,FALSE
+7260,Brown Creeper,7260,FALSE
+7350,Black-capped Chickadee,7353,TRUE
+7350,Black-capped Chickadee,7354,TRUE
+7350,Black-capped Chickadee,7352,TRUE
+3000,Ruffed Grouse,3000,FALSE
+4000,Black-backed Woodpecker,4000,FALSE
+5570,Golden-crowned Sparrow,5570,FALSE
+4660,Willow Flycatcher,4665,TRUE
+4750,Black-billed Magpie,4750,FALSE
+7480,Golden-crowned Kinglet,7480,FALSE
+5330,Pine Siskin,5330,FALSE
+6970,American Pipit,6970,FALSE
+7280,Red-breasted Nuthatch,7280,FALSE
+7680,Mountain Bluebird,7680,FALSE
+6210,Northern Shrike,6210,FALSE
+4020,Yellow-bellied Sapsucker,4020,FALSE
+5360,Lapland Longspur,5360,FALSE
+7470,Arctic Warbler,7470,FALSE
+5370,Smith's Longspur,5370,FALSE
+3020,Rock Ptarmigan,3020,FALSE
+7650,Northern Wheatear,7650,FALSE
+4780,Steller's Jay,4780,FALSE
+4890,Northwestern Crow,4882,TRUE
+2971,Sooty Grouse,2973,TRUE
+4030,Red-breasted Sapsucker,4030,FALSE
+4641,Pacific-slope Flycatcher,4642,TRUE
+5671,(Oregon Junco) Dark-eyed Junco,5671,FALSE
+7221,Pacific Wren,7220,TRUE
+7410,Chestnut-backed Chickadee,7410,FALSE
+4330,Rufous Hummingbird,4335,TRUE
+5677,(unid. race) Dark-eyed Junco,5677,FALSE
+6560,(Audubon's Warbler) Yellow-rumped Warbler,6560,FALSE
+4240,Vaux's Swift,4240,FALSE
+6556,(unid. Myrtle/Audubon's) Yellow-rumped Warbler,6556,FALSE
+6291,Cassin's Vireo,6295,TRUE
+6291,Cassin's Vireo,6296,TRUE
+4130,(Red-shafted Flicker) Northern Flicker,4130,FALSE
+5170,Purple Finch,5170,FALSE
+3120,Band-tailed Pigeon,3120,FALSE
+6070,Western Tanager,6070,FALSE
+4679,unid. Empidonax flycatcher,4679,FALSE
+3080,Sharp-tailed Grouse,3080,FALSE
+7354,unid. Black-capped Chickadee / Boreal Chickadee,7354,TRUE
+5240,Gray-crowned Rosy-Finch,5240,FALSE
+5340,Snow Bunting,5340,FALSE
+3091,Ring-necked Pheasant,3091,FALSE
+4470,Western Kingbird,4447,TRUE
+4402,unid. hummingbird,4402,FALSE
+4640,Cordilleran Flycatcher,4642,TRUE
+6960,Eastern Yellow Wagtail,6960,FALSE
+6940,White Wagtail,6940,FALSE
+5270,Hoary Redpoll,5270,FALSE
+7640,Bluethroat,7640,FALSE
+6990,Red-throated Pipit,6990,FALSE
+6185,unid. Cedar Waxwing / Bohemian Waxwing,6185,TRUE
+4220,Black Swift,4220,FALSE
+5011,Western Meadowlark,5012,TRUE
+5100,Brewer's Blackbird,5100,FALSE
+5380,Chestnut-collared Longspur,5380,FALSE
+5400,Vesper Sparrow,5400,FALSE
+5610,Clay-colored Sparrow,5610,FALSE
+6050,Lark Bunting,6050,FALSE
+7000,Sprague's Pipit,7000,FALSE
+4970,Yellow-headed Blackbird,4970,FALSE
+5450,Baird's Sparrow,5450,FALSE
+2881,Gray Partridge,2881,FALSE
+5390,McCown's Longspur,5390,FALSE
+5620,Brewer's Sparrow,5620,FALSE
+5880,Spotted Towhee,5871,TRUE
+4940,Bobolink,4940,FALSE
+7150,Rock Wren,7150,FALSE
+5990,Lazuli Bunting,5990,FALSE
+5960,Black-headed Grosbeak,5960,FALSE
+5480,LeConte's Sparrow,5480,FALSE
+4021,Red-naped Sapsucker,4021,FALSE
+5180,Cassin's Finch,5180,FALSE
+7380,Mountain Chickadee,7353,TRUE
+4690,Dusky Flycatcher,4689,TRUE
+4910,Clark's Nutcracker,4910,FALSE
+4360,Calliope Hummingbird,4360,FALSE
+5580,White-throated Sparrow,5580,FALSE
+5080,Bullock's Oriole,5077,TRUE
+5140,Evening Grosbeak,5140,FALSE
+7670,Western Bluebird,7670,FALSE
+2970,Dusky Grouse,2973,TRUE
+4642,unid. Cordilleran / Pacific-slope Flycatcher,4642,TRUE
+7240,Sedge Wren,7240,FALSE
+5491,Nelson's Sparrow,5491,FALSE
+5950,Rose-breasted Grosbeak,5950,FALSE
+4022,unid. sapsucker,4022,FALSE
+5840,Swamp Sparrow,5840,FALSE
+6780,Connecticut Warbler,6780,FALSE
+6790,Mourning Warbler,6790,FALSE
+6500,Cape May Warbler,6500,FALSE
+6570,Magnolia Warbler,6570,FALSE
+6295,unid. Cassin's Vireo / Blue-headed Vireo,6295,TRUE
+6720,Palm Warbler,6720,FALSE
+6600,Bay-breasted Warbler,6600,FALSE
+6860,Canada Warbler,6860,FALSE
+7222,Winter Wren,7220,TRUE
+7220,unid. Pacific Wren / Winter Wren,7220,TRUE
+4689,unid. Hammond's Flycatcher / Dusky Flycatcher,4689,TRUE
+6450,Nashville Warbler,6450,FALSE
+5077,unid. Bullock's Oriole / Baltimore Oriole,5077,TRUE
+5012,unid. Eastern Meadowlark / Western Meadowlark,5012,TRUE
+5225,unid. Red Crossbill / White-winged Crossbill,5225,TRUE
+4665,unid. Alder Flycatcher / Willow Flycatcher,4665,TRUE
+3090,Greater Sage-Grouse,3090,FALSE
+2950,Gambel's Quail,2950,FALSE
+4290,Black-chinned Hummingbird,4295,TRUE
+4480,Cassin's Kingbird,4447,TRUE
+4540,Ash-throated Flycatcher,4540,FALSE
+4691,Gray Flycatcher,4691,FALSE
+4920,Pinyon Jay,4920,FALSE
+5730,Black-throated Sparrow,5730,FALSE
+7070,Curve-billed Thrasher,7070,FALSE
+7080,Bendire's Thrasher,7080,FALSE
+7331,Juniper Titmouse,7332,TRUE
+5910,Canyon Towhee,5910,FALSE
+4250,White-throated Swift,4250,FALSE
+5738,Sagebrush Sparrow,5740,TRUE
+6292,Plumbeous Vireo,6296,TRUE
+6340,Gray Vireo,6340,FALSE
+6650,Black-throated Gray Warbler,6650,FALSE
+7430,Bushtit,7430,FALSE
+6440,Virginia's Warbler,6440,FALSE
+7020,Sage Thrasher,7020,FALSE
+4320,Broad-tailed Hummingbird,4320,FALSE
+4813,Woodhouse's Scrub-Jay,4810,TRUE
+5040,Scott's Oriole,5040,FALSE
+5800,Rufous-crowned Sparrow,5800,FALSE
+7170,Canyon Wren,7170,FALSE
+3960,Ladder-backed Woodpecker,3960,FALSE
+5900,Green-tailed Towhee,5900,FALSE
+5650,Black-chinned Sparrow,5650,FALSE
+5300,Lesser Goldfinch,5300,FALSE
+6330,Bell's Vireo,6330,FALSE
+7130,Cactus Wren,7130,FALSE
+5780,Cassin's Sparrow,5780,FALSE
+7460,Verdin,7460,FALSE
+4870,Chihuahuan Raven,4865,TRUE
+4080,Lewis's Woodpecker,4080,FALSE
+6640,Grace's Warbler,6640,FALSE
+3850,Greater Roadrunner,3850,FALSE
+6430,Lucy's Warbler,6430,FALSE
+7520,Black-tailed Gnatcatcher,7520,FALSE
+6200,Phainopepla,6200,FALSE
+4530,Brown-crested Flycatcher,4530,FALSE
+5740,unid. Sagebrush Sparrow / Bell's Sparrow,5740,TRUE
+4460,Tropical Kingbird,4462,TRUE
+4820,Mexican Jay,4820,FALSE
+4040,Williamson's Sapsucker,4040,FALSE
+5690,(Gray-headed Junco) Dark-eyed Junco,5690,FALSE
+6900,Red-faced Warbler,6900,FALSE
+7300,Pygmy Nuthatch,7300,FALSE
+6090,Hepatic Tanager,6090,FALSE
+4070,Acorn Woodpecker,4070,FALSE
+7120,Crissal Thrasher,7120,FALSE
+5120,Great-tailed Grackle,5135,TRUE
+7110,LeConte's Thrasher,7110,FALSE
+4300,Costa's Hummingbird,4300,FALSE
+4140,Gilded Flicker,4140,FALSE
+4310,Anna's Hummingbird,4310,FALSE
+4110,Gila Woodpecker,4110,FALSE
+4710,Vermilion Flycatcher,4710,FALSE
+5050,Hooded Oriole,5050,FALSE
+6320,Hutton's Vireo,6320,FALSE
+6880,Painted Redstart,6880,FALSE
+7340,Bridled Titmouse,7340,FALSE
+4580,Black Phoebe,4580,FALSE
+4960,Bronzed Cowbird,4955,TRUE
+6510,Olive Warbler,6510,FALSE
+4600,Greater Pewee,4600,FALSE
+5920,Abert's Towhee,5920,FALSE
+5940,Pyrrhuloxia,5935,TRUE
+5700,Yellow-eyed Junco,5700,FALSE
+4510,Sulphur-bellied Flycatcher,4510,FALSE
+2930,Scaled Quail,2930,FALSE
+6000,Varied Bunting,6000,FALSE
+4720,Northern Beardless-Tyrannulet,4720,FALSE
+5790,Rufous-winged Sparrow,5790,FALSE
+4550,Dusky-capped Flycatcher,4550,FALSE
+5760,Botteri's Sparrow,5760,FALSE
+4410,Broad-billed Hummingbird,4410,FALSE
+4865,unid. Chihuahuan Raven / Common Raven,4865,TRUE
+3975,Arizona Woodpecker,3975,FALSE
+2960,Montezuma Quail,2960,FALSE
+4451,Thick-billed Kingbird,4451,FALSE
+3890,Elegant Trogon,3890,FALSE
+4270,Blue-throated Mountain-gem,4270,FALSE
+4260,Rivoli's Hummingbird,4260,FALSE
+4391,Violet-crowned Hummingbird,4391,FALSE
+16600,Sinaloa Wren,16600,FALSE
+4411,Rose-throated Becard,4411,FALSE
+2882,Chukar,2882,FALSE
+4447,unid. Cassin's Kingbird / Western Kingbird,4447,TRUE
+3201,Ruddy Ground Dove,3201,FALSE
+7370,Mexican Chickadee,7370,FALSE
+5935,unid. Northern Cardinal / Pyrrhuloxia,5935,TRUE
+4430,Scissor-tailed Flycatcher,4430,FALSE
+2940,California Quail,2940,FALSE
+7353,unid. Black-capped Chickadee / Mountain Chickadee,7353,TRUE
+7351,unid. western chickadee species,7351,FALSE
+2973,unid. Dusky Grouse / Sooty Grouse,2973,TRUE
+4730,Eurasian Skylark,4730,FALSE
+5195,unid. Purple Finch / Cassin's Finch / House Finch,5195,TRUE
+4882,unid. American Crow / Northwestern Crow,4882,TRUE
+4340,Allen's Hummingbird,4335,TRUE
+6690,Hermit Warbler,6685,TRUE
+2920,Mountain Quail,2920,FALSE
+5911,California Towhee,5911,FALSE
+4812,California Scrub-Jay,4810,TRUE
+7330,Oak Titmouse,7332,TRUE
+7420,Wrentit,7420,FALSE
+3970,Nuttall's Woodpecker,3970,FALSE
+3990,White-headed Woodpecker,3990,FALSE
+5000,Tricolored Blackbird,5000,FALSE
+7332,unid. Oak Titmouse / Juniper Titmouse,7332,TRUE
+5310,Lawrence's Goldfinch,5310,FALSE
+4335,unid. Rufous Hummingbird / Allen's Hummingbird,4335,TRUE
+4760,Yellow-billed Magpie,4760,FALSE
+7100,California Thrasher,7100,FALSE
+5739,Bell's Sparrow,5740,TRUE
+4810,unid. California Scrub-Jay / Woodhouse's Scrub-Jay,4810,TRUE
+3151,Spotted Dove,3151,FALSE
+3152,African Collared-Dove (a.k.a. Ringed Turtle-Dove),3152,FALSE
+3095,Indian Peafowl,3095,FALSE
+3827,unid. White-winged / Yellow-chevroned Parakeet,3827,TRUE
+51830,Nanday Parakeet,51830,FALSE
+7530,California Gnatcatcher,7530,FALSE
+4811,Island Scrub-Jay,4811,FALSE
+8110,Scaly-breasted Munia,8110,FALSE
+19510,Pin-tailed Whydah,19510,FALSE
+7315,unid. Tufted Titmouse / Black-crested Titmouse,7315,TRUE
+3050,Greater Prairie-Chicken,3050,FALSE
+3089,Gunnison Sage-Grouse,3089,FALSE
+3070,Lesser Prairie-Chicken,3070,FALSE
+5871,unid. Spotted Towhee / Eastern Towhee,5871,TRUE
+3040,White-tailed Ptarmigan,3040,FALSE
+6420,Golden-winged Warbler,6420,FALSE
+6540,Black-throated Blue Warbler,6540,FALSE
+6620,Blackburnian Warbler,6620,FALSE
+3875,unid. Yellow-billed Cuckoo / Black-billed Cuckoo,3875,TRUE
+5490,Saltmarsh Sparrow,5490,FALSE
+5470,Henslow's Sparrow,5470,FALSE
+3824,Monk Parakeet,3824,FALSE
+4790,Florida Scrub-Jay,4790,FALSE
+3830,Smooth-billed Ani,3830,FALSE
+5032,Spot-breasted Oriole,5032,FALSE
+6230,Black-whiskered Vireo,6230,FALSE
+3140,White-crowned Pigeon,3140,FALSE
+3860,Mangrove Cuckoo,3860,FALSE
+7031,Bahama Mockingbird,7031,FALSE
+4932,Common Myna,4932,FALSE
+3826,Red-crowned Parrot,3826,FALSE
+3822,Budgerigar,3822,FALSE
+52021,Yellow-chevroned Parakeet,3827,TRUE
+6296,unid. Plumbeous Vireo / Cassin's Vireo,6296,TRUE
+5680,(Pink-sided Junco) Dark-eyed Junco,5680,FALSE
+5212,Unid. Cassia Crossbill / Red Crossbill,5212,TRUE
+6883,Eurasian Tree Sparrow,6883,FALSE
+7352,unid. Carolina Chickadee / Black-capped Chickadee,7352,TRUE
+5135,unid. Boat-tailed Grackle / Great-tailed Grackle,5135,TRUE
+6122,unid. Cave Swallow / Cliff Swallow,6122,TRUE
+6121,Cave Swallow,6122,TRUE
+4955,unid. Bronzed Cowbird / Brown-headed Cowbird,4955,TRUE
+4490,Great Kiskadee,4490,FALSE
+7571,Bicknell's Thrush,7571,FALSE
+5530,Harris's Sparrow,5530,FALSE
+6700,Kirtland's Warbler,6700,FALSE
+5660,(White-winged Junco) Dark-eyed Junco,5660,FALSE
+4100,Golden-fronted Woodpecker,4100,FALSE
+6300,Black-capped Vireo,6300,FALSE
+4295,unid. Ruby-throated / Black-chinned Hummingbird,4295,TRUE
+7320,Black-crested Titmouse,7315,TRUE
+6685,unid. Townsend's Warbler / Hermit Warbler,6685,TRUE
+5860,Olive Sparrow,5860,FALSE
+7060,Long-billed Thrasher,7060,FALSE
+4461,Couch's Kingbird,4462,TRUE
+3110,Plain Chachalaca,3110,FALSE
+3840,Groove-billed Ani,3840,FALSE
+4830,Green Jay,4830,FALSE
+3180,White-tipped Dove,3180,FALSE
+4390,Buff-bellied Hummingbird,4390,FALSE
+5031,Altamira Oriole,5031,FALSE
+4462,unid. Tropical Kingbird / Couch's Kingbird,4462,TRUE
+5030,Audubon's Oriole,5030,FALSE
+3130,Red-billed Pigeon,3130,FALSE
+6490,Tropical Parula,6490,FALSE
+6660,Golden-cheeked Warbler,6660,FALSE
+4370,Lucifer Hummingbird,4370,FALSE
+5261,European Goldfinch,5261,FALSE
+5250,Black Rosy-Finch,5250,FALSE
